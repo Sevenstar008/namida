@@ -10,7 +10,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          submodules: recursive
+          token: ${{ secrets.PAT }}
+          submodules: false
 
       - uses: subosito/flutter-action@v2
         with:
