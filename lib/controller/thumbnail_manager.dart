@@ -7,22 +7,21 @@ import 'dart:isolate';
 import 'package:flutter/material.dart';
 
 import 'package:rhttp/rhttp.dart';
-import 'package:youtipie/class/thumbnail.dart';
 
 import 'package:namida/base/ports_provider.dart';
 import 'package:namida/class/http_manager.dart';
 import 'package:namida/controller/ffmpeg_controller.dart';
 import 'package:namida/core/constants.dart';
 import 'package:namida/core/extensions.dart';
-import 'package:namida/youtube/class/download_task_base.dart';
-import 'package:namida/youtube/controller/youtube_history_controller.dart';
-import 'package:namida/youtube/widgets/yt_thumbnail.dart';
 
 class ThumbnailManager {
   static final ThumbnailManager inst = ThumbnailManager._internal();
   ThumbnailManager._internal();
 
   final _thumbnailDownloader = _YTThumbnailDownloadManager();
+
+  static final RegExp _cleanupFilenameRegex = RegExp(r'[*#\$|/\\!^:"\?%<>\u2F38\u2044\u29F8]', caseSensitive: false);
+  static String _cleanupFilename(String filename) => filename.replaceAll(_cleanupFilenameRegex, '_');
 
   static Future<String> getPathToYTImage(String? id) async {
     String getPath(String prefix) => "${AppDirs.YT_THUMBNAILS}$prefix$id.png";
@@ -83,7 +82,7 @@ class ThumbnailManager {
                 return null;
               },
             );
-            if (filename != null) filename = DownloadTaskFilename.cleanupFilename(filename, parentDirPath: innerDirPath);
+            if (filename != null) filename = _cleanupFilename(filename);
           }
         } catch (_) {}
       }
@@ -100,7 +99,7 @@ class ThumbnailManager {
 
     if (finalUrl != null) {
       final innerDirPath = AppDirs.YT_THUMBNAILS_CHANNELS;
-      finalUrl = DownloadTaskFilename.cleanupFilename(finalUrl, parentDirPath: innerDirPath);
+      finalUrl = _cleanupFilename(finalUrl);
       return File("$innerDirPath$dirPrefix${symlinkId ?? finalUrl}");
     }
 
@@ -199,11 +198,7 @@ class ThumbnailManager {
   Future<File?> getLowResYoutubeVideoThumbnail(String? videoId, {String? symlinkId, bool useHighQualityIfEnoughListens = true, VoidCallback? onNotFound}) async {
     if (videoId == null) return null;
 
-    bool isTemp = true;
-    if (useHighQualityIfEnoughListens) {
-      final listens = YoutubeHistoryController.inst.topTracksMapListens.value[videoId]?.length ?? 0;
-      if (listens >= 10) isTemp = false; // fetch full res if listens >= 10
-    }
+    const bool isTemp = true;
     final bool lowerResYTID = isTemp;
 
     final file = imageUrlToCacheFile(id: videoId, url: null, isTemp: isTemp, type: ThumbnailType.video);

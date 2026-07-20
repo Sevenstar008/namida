@@ -287,7 +287,6 @@ enum LibraryTab {
   foldersMusic,
   foldersVideos,
   search,
-  youtube,
   queues,
   favourites,
   history,
@@ -343,38 +342,6 @@ enum QueueSourceEnum {
   final bool canHaveDuplicates;
   final bool supportResuming;
   const QueueSourceEnum(this.canHaveDuplicates, {this.supportResuming = false});
-}
-
-enum QueueSourceYoutubeIDEnum {
-  // -- must have different name from QueueSourceEnum
-  // -- so that name matching works properly (workaround but sheshh)
-
-  ytChannel(true),
-  ytPlaylist(true, supportResuming: true),
-  ytSearch(false),
-  ytPlayerQueue(true),
-  ytMostPlayed(false),
-  ytHistory(true),
-  ytHistoryFiltered(false),
-  ytFavourites(false, supportResuming: true),
-  ytExternalLink(true),
-  ytHomeFeed(false),
-  ytNotificationsHosted(false),
-  ytRelatedVideos(false),
-  ytHistoryFilteredHosted(false),
-  ytSearchHosted(false),
-  ytChannelHosted(false),
-  ytHistoryHosted(true),
-  ytPlaylistHosted(true),
-
-  ytDownloadTask(false),
-  ytVideoEndCard(false),
-  ytVideoDescription(false),
-  ;
-
-  final bool canHaveDuplicates;
-  final bool supportResuming;
-  const QueueSourceYoutubeIDEnum(this.canHaveDuplicates, {this.supportResuming = false});
 }
 
 sealed class QueueSourceBase<E extends Enum> {
@@ -473,82 +440,6 @@ class QueueSource extends QueueSourceBase<QueueSourceEnum> {
   String toString() => 'QueueSource(s: $s, title: $title)';
 }
 
-class QueueSourceYoutubeID extends QueueSourceBase<QueueSourceYoutubeIDEnum> {
-  @override
-  bool get canHaveDuplicates => s.canHaveDuplicates;
-  @override
-  bool get supportResuming => s.supportResuming;
-  @override
-  String toText() => s.toText();
-
-  const QueueSourceYoutubeID._(super.s, {super.title}) : super._();
-
-  static QueueSourceYoutubeID ytChannel(String? name) => QueueSourceYoutubeID._(QueueSourceYoutubeIDEnum.ytChannel, title: name);
-  static QueueSourceYoutubeID ytPlaylist(String? name) => QueueSourceYoutubeID._(QueueSourceYoutubeIDEnum.ytPlaylist, title: name);
-  static const ytSearch = QueueSourceYoutubeID._(QueueSourceYoutubeIDEnum.ytSearch);
-  static const ytPlayerQueue = QueueSourceYoutubeID._(QueueSourceYoutubeIDEnum.ytPlayerQueue);
-  static const ytMostPlayed = QueueSourceYoutubeID._(QueueSourceYoutubeIDEnum.ytMostPlayed);
-  static const ytHistory = QueueSourceYoutubeID._(QueueSourceYoutubeIDEnum.ytHistory);
-  static const ytHistoryFiltered = QueueSourceYoutubeID._(QueueSourceYoutubeIDEnum.ytHistoryFiltered);
-  static const ytFavourites = QueueSourceYoutubeID._(QueueSourceYoutubeIDEnum.ytFavourites);
-  static const ytExternalLink = QueueSourceYoutubeID._(QueueSourceYoutubeIDEnum.ytExternalLink);
-  static const ytHomeFeed = QueueSourceYoutubeID._(QueueSourceYoutubeIDEnum.ytHomeFeed);
-  static const ytNotificationsHosted = QueueSourceYoutubeID._(QueueSourceYoutubeIDEnum.ytNotificationsHosted);
-  static const ytRelatedVideos = QueueSourceYoutubeID._(QueueSourceYoutubeIDEnum.ytRelatedVideos);
-  static const ytHistoryFilteredHosted = QueueSourceYoutubeID._(QueueSourceYoutubeIDEnum.ytHistoryFilteredHosted);
-  static const ytSearchHosted = QueueSourceYoutubeID._(QueueSourceYoutubeIDEnum.ytSearchHosted);
-  static const ytChannelHosted = QueueSourceYoutubeID._(QueueSourceYoutubeIDEnum.ytChannelHosted);
-  static const ytHistoryHosted = QueueSourceYoutubeID._(QueueSourceYoutubeIDEnum.ytHistoryHosted);
-  static const ytPlaylistHosted = QueueSourceYoutubeID._(QueueSourceYoutubeIDEnum.ytPlaylistHosted);
-
-  static const ytDownloadTask = QueueSourceYoutubeID._(QueueSourceYoutubeIDEnum.ytDownloadTask);
-  static const ytVideoEndCard = QueueSourceYoutubeID._(QueueSourceYoutubeIDEnum.ytVideoEndCard);
-  static const ytVideoDescription = QueueSourceYoutubeID._(QueueSourceYoutubeIDEnum.ytVideoDescription);
-
-  static QueueSourceYoutubeID? fromJson(dynamic value) {
-    String? sourceString;
-    String? title;
-    if (value is Map) {
-      sourceString = value['s'];
-      title = value['t'];
-    } else if (value is String) {
-      sourceString = value;
-    }
-
-    if (sourceString != null) {
-      final v = QueueSourceYoutubeIDEnum.values.getEnum(sourceString);
-      if (v != null) {
-        return QueueSourceYoutubeID._(v, title: title);
-      }
-    }
-
-    return null;
-  }
-
-  @override
-  dynamic toJson() {
-    if (title == null) {
-      return s.name;
-    }
-    return {
-      't': title,
-      's': s.name,
-    };
-  }
-
-  @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-    return other is QueueSourceYoutubeID && other.s == s && other.title == title;
-  }
-
-  @override
-  int get hashCode => s.hashCode ^ title.hashCode;
-
-  @override
-  String toString() => 'QueueSourceYoutubeID(s: $s, title: $title)';
-}
-
 enum TagField {
   title,
   artist,
@@ -631,25 +522,6 @@ enum RouteType {
   SEARCH_albumResults,
   SEARCH_artistResults,
 
-  // ----- Youtube -----
-  YOUTUBE_HOME,
-  YOUTUBE_PLAYLISTS,
-  YOUTUBE_PLAYLIST_SUBPAGE,
-  YOUTUBE_PLAYLIST_DOWNLOAD_SUBPAGE,
-  YOUTUBE_PLAYLIST_SUBPAGE_HOSTED,
-  YOUTUBE_LIKED_SUBPAGE,
-  YOUTUBE_HISTORY_SUBPAGE,
-  YOUTUBE_MOST_PLAYED_SUBPAGE,
-  YOUTUBE_CHANNEL_SUBPAGE,
-  YOUTUBE_USER_CHANNELS_PAGE_HOSTED,
-
-  YOUTUBE_USER_MANAGE_ACCOUNT_SUBPAGE,
-  YOUTUBE_USER_MANAGE_SUBSCRIPTION_SUBPAGE,
-  YOUTUBE_SPONSORBLOCK_SUBPAGE,
-  YOUTUBE_RETURN_YOUTUBE_DISLIKE_SUBPAGE,
-
-  YOUTUBE_HISTORY_HOSTED_SUBPAGE,
-
   /// others
   UNKNOWN,
 }
@@ -675,7 +547,6 @@ enum MediaType {
 enum VideoPlaybackSource {
   auto,
   local,
-  youtube,
 }
 
 enum LyricsSource {
@@ -763,7 +634,6 @@ enum NotificationTapAction {
 
 enum SearchType {
   localTracks,
-  youtube,
   auto, // must be at the end, indices are used
 }
 
@@ -771,16 +641,6 @@ enum AlbumIdentifier {
   albumName,
   year,
   albumArtist,
-}
-
-enum OnYoutubeLinkOpenAction {
-  showDownload,
-  play,
-  playNext,
-  playAfter,
-  playLast,
-  addToPlaylist,
-  alwaysAsk,
 }
 
 enum PerformanceMode {
@@ -804,7 +664,6 @@ enum SettingSubpageEnum {
   indexer,
   playback,
   customization,
-  youtube,
   extra,
   backupRestore,
   advanced,
@@ -817,38 +676,10 @@ enum FABType {
   search,
 }
 
-enum YTHomePages {
-  home,
-  notifications,
-  channels,
-  playlists,
-  downloads,
-}
-
 enum SetMusicAsAction {
   ringtone,
   notification,
   alarm,
-}
-
-enum YTSeekActionMode {
-  none,
-  minimizedMiniplayer,
-  expandedMiniplayer,
-  all,
-}
-
-enum YTVisibleShortPlaces {
-  homeFeed,
-  search,
-  history,
-  relatedVideos,
-}
-
-enum YTVisibleMixesPlaces {
-  homeFeed,
-  search,
-  relatedVideos,
 }
 
 enum TrackExecuteActions {
@@ -874,8 +705,6 @@ enum TrackExecuteActions {
   copyTitle,
   copyArtist,
   copyArtistAndTitle,
-  copyYTLink,
-  searchYTSimilar,
   delete,
 }
 
@@ -885,18 +714,6 @@ enum CacheVideoPriority {
   normal,
   low,
   GETOUT,
-}
-
-enum YTSortType {
-  title,
-  channelTitle,
-  duration,
-  date,
-  dateAdded,
-  shuffle,
-  mostPlayed,
-  latestPlayed,
-  firstListen,
 }
 
 enum DownloadNotifications {

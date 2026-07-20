@@ -6,11 +6,8 @@ import 'package:flutter/foundation.dart';
 import 'package:namida/class/track.dart';
 import 'package:namida/controller/lyrics_search_utils/lrc_search_details.dart';
 import 'package:namida/controller/lyrics_search_utils/lrc_search_utils_selectable.dart';
-import 'package:namida/controller/lyrics_search_utils/lrc_search_utils_youtubeid.dart';
 import 'package:namida/core/constants.dart';
 import 'package:namida/core/extensions.dart';
-import 'package:namida/youtube/class/youtube_id.dart';
-import 'package:namida/youtube/controller/youtube_info_controller.dart';
 
 abstract class LrcSearchUtils {
   const LrcSearchUtils();
@@ -19,18 +16,6 @@ abstract class LrcSearchUtils {
     if (item is Selectable) {
       final tr = item.track;
       return LrcSearchUtilsSelectable(tr.toTrackExt(), tr);
-    } else if (item is YoutubeID) {
-      final info = await (
-        YoutubeInfoController.utils.getVideoName(item.id),
-        YoutubeInfoController.utils.getVideoChannelName(item.id),
-        YoutubeInfoController.utils.getVideoDuration(item.id),
-      ).wait;
-      return LrcSearchUtilsYoutubeID(
-        item,
-        videoTitle: info.$1,
-        channelTitle: info.$2,
-        duration: info.$3,
-      );
     }
     return null;
   }

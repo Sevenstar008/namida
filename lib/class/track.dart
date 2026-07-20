@@ -20,7 +20,7 @@ import 'package:namida/core/constants.dart';
 import 'package:namida/core/enums.dart';
 import 'package:namida/core/extensions.dart';
 import 'package:namida/core/translations/language.dart';
-import 'package:namida/youtube/class/download_task_base.dart';
+import 'package:namida/core/download_task_filename.dart';
 
 part 'album_identifier_wrapper.dart';
 

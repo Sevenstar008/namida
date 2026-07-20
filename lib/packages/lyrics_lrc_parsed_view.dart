@@ -23,8 +23,6 @@ import 'package:namida/ui/dialogs/set_lrc_dialog.dart';
 import 'package:namida/ui/widgets/animated_widgets.dart';
 import 'package:namida/ui/widgets/artwork.dart';
 import 'package:namida/ui/widgets/custom_widgets.dart';
-import 'package:namida/youtube/class/youtube_id.dart';
-import 'package:namida/youtube/widgets/yt_thumbnail.dart';
 
 class LyricsLRCParsedView extends StatefulWidget {
   final Widget videoOrImage;
@@ -123,8 +121,6 @@ class LyricsLRCParsedViewState extends State<LyricsLRCParsedView> {
       final current = Player.inst.currentItem.value;
       if (current is Selectable) {
         totalDurMS = current.track.durationMS;
-      } else if (current is YoutubeID) {
-        totalDurMS = Player.inst.getCurrentVideoDuration.inMilliseconds;
       }
     }
     _currentItemDurationMS.value = totalDurMS;
@@ -377,13 +373,9 @@ class LyricsLRCParsedViewState extends State<LyricsLRCParsedView> {
     final topInfoWidget = fullscreen
         ? ObxO(
             rx: Player.inst.currentItem,
-            builder: (context, item) {
-              final textData = item is Selectable
-                  ? NamidaMiniPlayerTrack.textBuilder(item)
-                  : item is YoutubeID
-                  ? NamidaMiniPlayerYoutubeIDState.textBuilder(context, item)
-                  : null;
-              return ConstrainedBox(
+              builder: (context, item) {
+                final textData = item is Selectable ? NamidaMiniPlayerTrack.textBuilder(item) : null;
+                return ConstrainedBox(
                 constraints: BoxConstraints(
                   minWidth: context.width, // vip
                   minHeight: 40.0, // eyeballed to match when textData is valid
@@ -392,11 +384,9 @@ class LyricsLRCParsedViewState extends State<LyricsLRCParsedView> {
                   child: TapDetector(
                     onTap: null,
                     initializer: (instance) {
-                      void fn(TapUpDetails d) {
+                       void fn(TapUpDetails d) {
                         if (item is Selectable) {
                           NamidaMiniPlayerTrack.openMenu(item.trackWithDate, item.track);
-                        } else if (item is YoutubeID) {
-                          NamidaMiniPlayerYoutubeIDState.openMenu(context, item, d);
                         }
                       }
 
@@ -604,40 +594,20 @@ class LyricsLRCParsedViewState extends State<LyricsLRCParsedView> {
                       child: ObxO(
                         rx: Player.inst.currentItem,
                         builder: (context, item) {
-                          Widget child;
-                          if (item is YoutubeID) {
-                            final vidId = item.id;
-                            child = YoutubeThumbnail(
-                              type: ThumbnailType.video,
-                              key: Key(vidId),
-                              isImportantInCache: true,
-                              width: context.width,
-                              borderRadius: 0,
-                              blur: 0,
-                              disableBlurBgSizeShrink: true,
-                              videoId: vidId,
-                              displayFallbackIcon: false,
-                              compressed: true,
-                              preferLowerRes: true,
-                              forceSquared: true,
-                              fit: BoxFit.cover,
-                            );
-                          } else {
-                            final track = item is Selectable ? item.track : null;
-                            child = ArtworkWidget(
-                              key: ValueKey(track?.path),
-                              track: track,
-                              path: track?.pathToImage,
-                              thumbnailSize: context.width,
-                              width: context.width,
-                              borderRadius: 0,
-                              blur: 0,
-                              disableBlurBgSizeShrink: true,
-                              compressed: true,
-                              forceSquared: true,
-                              fit: BoxFit.cover,
-                            );
-                          }
+                          final track = item is Selectable ? item.track : null;
+                          final child = ArtworkWidget(
+                            key: ValueKey(track?.path),
+                            track: track,
+                            path: track?.pathToImage,
+                            thumbnailSize: context.width,
+                            width: context.width,
+                            borderRadius: 0,
+                            blur: 0,
+                            disableBlurBgSizeShrink: true,
+                            compressed: true,
+                            forceSquared: true,
+                            fit: BoxFit.cover,
+                          );
 
                           return CustomAnimatedSwitcher(
                             duration: const Duration(milliseconds: 1200),

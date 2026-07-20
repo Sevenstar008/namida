@@ -32,14 +32,12 @@ import 'package:namida/ui/widgets/custom_widgets.dart';
 import 'package:namida/ui/widgets/settings/extra_settings.dart';
 import 'package:namida/ui/widgets/settings/theme_settings.dart';
 import 'package:namida/ui/widgets/settings_card.dart';
-import 'package:namida/youtube/controller/youtube_history_controller.dart';
 
 enum _AdvancedSettingKeys with SettingKeysBase {
   performanceMode,
   rescanVideos,
   removeSourceHistory,
   updateDirPath,
-  fixYTDLPBigThumbnail,
   compressImages,
   maxImageCache,
   maxAudioCache,
@@ -61,7 +59,6 @@ class AdvancedSettings extends SettingSubpageProvider {
     _AdvancedSettingKeys.rescanVideos: [lang.rescanVideos],
     _AdvancedSettingKeys.removeSourceHistory: [lang.removeSourceFromHistory],
     _AdvancedSettingKeys.updateDirPath: [lang.updateDirectoryPath],
-    _AdvancedSettingKeys.fixYTDLPBigThumbnail: [lang.fixYtdlpBigThumbnailSize],
     _AdvancedSettingKeys.compressImages: [lang.compressImages],
     _AdvancedSettingKeys.maxImageCache: [lang.maxImageCacheSize],
     _AdvancedSettingKeys.maxAudioCache: [lang.maxAudioCacheSize],
@@ -489,15 +486,6 @@ class AdvancedSettings extends SettingSubpageProvider {
                               _removeSourceFromHistory(HistoryController.inst);
                             },
                           ),
-                          CustomListTile(
-                            title: lang.youtube,
-                            subtitle: '',
-                            icon: Broken.video_square,
-                            onTap: () {
-                              NamidaNavigator.inst.closeDialog();
-                              _removeSourceFromHistory(YoutubeHistoryController.inst);
-                            },
-                          ),
                         ],
                       ),
                     ),
@@ -510,13 +498,6 @@ class AdvancedSettings extends SettingSubpageProvider {
             key: _AdvancedSettingKeys.updateDirPath,
             child: UpdateDirectoryPathListTile(
               bgColor: getBgColor(_AdvancedSettingKeys.updateDirPath),
-            ),
-          ),
-          // -- this will loop all choosen files, get yt thumbnail (download or cache), edit tags, without affecting file modified time.
-          getItemWrapper(
-            key: _AdvancedSettingKeys.fixYTDLPBigThumbnail,
-            child: _FixYTDLPThumbnailSizeListTile(
-              bgColor: getBgColor(_AdvancedSettingKeys.fixYTDLPBigThumbnail),
             ),
           ),
           getItemWrapper(
@@ -1062,45 +1043,6 @@ class UpdateDirectoryPathListTile extends StatelessWidget {
               ),
             ),
           ),
-        );
-      },
-    );
-  }
-}
-
-class _FixYTDLPThumbnailSizeListTile extends StatelessWidget {
-  final Color? bgColor;
-
-  const _FixYTDLPThumbnailSizeListTile({this.bgColor});
-
-  Future<void> _onFixYTDLPPress() async {
-    if (!await requestManageStoragePermission(ensureDirectoryCreated: true)) return;
-
-    final dirs = await NamidaFileBrowser.getDirectories(note: lang.fixYtdlpBigThumbnailSize);
-    if (dirs.isEmpty) return;
-    await NamidaFFMPEG.inst.fixYTDLPBigThumbnailSize(directoriesPaths: dirs);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Obx(
-      (context) {
-        final p = NamidaFFMPEG.inst.currentOperations[OperationType.ytdlpThumbnailFix]?.valueR;
-        final currentAudioPath = p?.currentFilePath;
-        final currentProgress = p?.progress ?? 0;
-        final totalAudiosToFix = p?.totalFiles ?? 0;
-        final totalFailed = p?.totalFailed ?? 0;
-        final failedSubtitle = totalFailed > 0 ? "${lang.failed}: $totalFailed" : null;
-        return CustomListTile(
-          bgColor: bgColor,
-          leading: const StackedIcon(
-            baseIcon: Broken.document_code_2,
-            secondaryIcon: Broken.video_square,
-          ),
-          title: lang.fixYtdlpBigThumbnailSize,
-          subtitle: currentAudioPath?.getFilename ?? failedSubtitle,
-          trailingText: totalAudiosToFix > 0 ? "$currentProgress/$totalAudiosToFix" : null,
-          onTap: _onFixYTDLPPress,
         );
       },
     );

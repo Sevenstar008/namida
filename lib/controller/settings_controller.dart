@@ -21,15 +21,11 @@ import 'package:namida/core/enums.dart';
 import 'package:namida/core/extensions.dart';
 import 'package:namida/core/utils.dart';
 import 'package:namida/ui/widgets/custom_widgets.dart';
-import 'package:namida/youtube/class/return_youtube_dislike.dart';
-import 'package:namida/youtube/class/sponsorblock.dart';
-import 'package:namida/youtube/controller/youtube_account_controller.dart';
 
 part 'settings.equalizer.dart';
 part 'settings.extra.dart';
 part 'settings.player.dart';
 part 'settings.tutorial.dart';
-part 'settings.youtube.dart';
 part 'settings.shortcuts.dart';
 
 final settings = _SettingsController._internal();
@@ -42,7 +38,6 @@ class _SettingsController with SettingsFileWriter {
       this.prepareSettingsFile(),
       this.equalizer.prepareSettingsFile(),
       this.player.prepareSettingsFile(),
-      this.youtube.prepareSettingsFile(),
       this.extra.prepareSettingsFile(),
       this.tutorial.prepareSettingsFile(),
       if (isDesktop) this.shortcuts.prepareSettingsFile(),
@@ -51,7 +46,6 @@ class _SettingsController with SettingsFileWriter {
 
   final equalizer = EqualizerSettings._internal();
   final player = _PlayerSettings._internal();
-  final youtube = _YoutubeSettings._internal();
   final extra = _ExtraSettings._internal();
   final tutorial = _TutorialSettings._internal();
   final shortcuts = _ShortcutsSettings._internal();
@@ -69,7 +63,6 @@ class _SettingsController with SettingsFileWriter {
     LibraryTab.artists,
     LibraryTab.playlists,
     LibraryTab.folders,
-    LibraryTab.youtube,
   ].obs;
 
   final borderRadiusMultiplier = 1.0.obs;

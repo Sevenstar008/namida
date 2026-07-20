@@ -31,7 +31,6 @@ import 'package:namida/ui/widgets/circular_percentages.dart';
 import 'package:namida/ui/widgets/custom_widgets.dart';
 import 'package:namida/ui/widgets/settings/extra_settings.dart';
 import 'package:namida/ui/widgets/settings_card.dart';
-import 'package:namida/youtube/controller/youtube_history_controller.dart';
 
 class IndexerSettingsKeysGlobal {
   const IndexerSettingsKeysGlobal._();
@@ -1375,7 +1374,6 @@ class IndexerSettings extends SettingSubpageProvider {
                     BackupController.inst.isCreatingBackup.value ||
                     BackupController.inst.isRestoringBackup.value ||
                     HistoryController.inst.isLoadingHistory ||
-                    YoutubeHistoryController.inst.isLoadingHistory ||
                     JsonToHistoryParser.inst.isParsing.value) {
                   snackyy(title: lang.note, message: lang.anotherProcessIsRunning);
                   return;

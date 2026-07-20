@@ -36,7 +36,6 @@ import 'package:namida/ui/widgets/library/artist_card.dart';
 import 'package:namida/ui/widgets/library/multi_artwork_card.dart';
 import 'package:namida/ui/widgets/library/track_tile.dart';
 import 'package:namida/ui/widgets/sort_by_button.dart';
-import 'package:namida/youtube/pages/yt_search_results_page.dart';
 
 class SearchPage extends StatefulWidget {
   const SearchPage({super.key});
@@ -236,19 +235,10 @@ class _SearchPageState extends State<SearchPage> {
               await SearchSortController.inst.prepareResources();
               SearchSortController.inst.searchAll(srchTxt);
               break;
-            case SearchType.youtube:
-              ScrollSearchController.inst.currentSearchType.value = SearchType.youtube;
-              final searchValue = ScrollSearchController.inst.ytSearchKey.currentState?.currentSearchText;
-              if (SearchSortController.inst.lastSearchText != searchValue) {
-                ScrollSearchController.inst.latestSubmittedYTSearch.value = SearchSortController.inst.lastSearchText;
-                ScrollSearchController.inst.ytSearchKey.currentState?.fetchSearch(customText: SearchSortController.inst.lastSearchText);
-              }
-              break;
           }
         },
         tabs: [
           lang.local,
-          lang.youtube,
         ],
         children: [
           Column(
@@ -668,10 +658,6 @@ class _SearchPageState extends State<SearchPage> {
                 ),
               ),
             ],
-          ),
-          YoutubeSearchResultsPage(
-            key: ScrollSearchController.inst.ytSearchKey,
-            searchTextCallback: null,
           ),
         ],
       ),

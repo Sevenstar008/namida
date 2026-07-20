@@ -14,8 +14,6 @@ import 'package:namida/core/extensions.dart';
 import 'package:namida/core/namida_converter_ext.dart';
 import 'package:namida/core/utils.dart';
 import 'package:namida/main.dart';
-import 'package:namida/youtube/controller/youtube_info_controller.dart';
-import 'package:namida/youtube/widgets/yt_thumbnail.dart';
 
 import 'platform/ffmpeg_executer/ffmpeg_executer.dart';
 
@@ -40,7 +38,6 @@ class NamidaFFMPEG {
 
   final currentOperations = <OperationType, Rx<OperationProgress>>{
     OperationType.imageCompress: OperationProgress().obs,
-    OperationType.ytdlpThumbnailFix: OperationProgress().obs,
   };
 
   Future<MediaInfo?> ffmpegExtractMetadata(String path) async {
@@ -333,91 +330,6 @@ class NamidaFFMPEG {
       );
     }
     currentOperations[OperationType.imageCompress]!.value.currentFilePath = null;
-  }
-
-  Future<void> fixYTDLPBigThumbnailSize({required List<String> directoriesPaths, bool recursive = true}) async {
-    if (!await requestManageStoragePermission(ensureDirectoryCreated: true)) return;
-
-    final allFiles = <FileSystemEntity>[];
-    int remainingDirsLength = directoriesPaths.length;
-    final completer = Completer<void>();
-    for (var e in directoriesPaths) {
-      Directory(e).listAllIsolate(recursive: recursive).then(
-        (value) {
-          allFiles.addAll(value);
-          remainingDirsLength--;
-          if (remainingDirsLength == 0) completer.complete();
-        },
-      );
-    }
-    await completer.future;
-    final totalFilesLength = allFiles.length;
-
-    int currentProgress = 0;
-    int currentFailed = 0;
-
-    currentOperations[OperationType.ytdlpThumbnailFix]!.value = OperationProgress(); // resetting
-
-    for (final filee in allFiles) {
-      currentProgress++;
-      if (filee is File) {
-        final tr =
-            Indexer.inst.allTracksMappedByPath[filee.path] ??
-            await Indexer.inst.getTrackInfo(
-              trackPath: filee.path,
-              onMinDurTrigger: () => null,
-              onMinSizeTrigger: () => null,
-              isNetwork: false,
-            );
-        if (tr == null) continue;
-        final videoId = tr.youtubeID;
-        if (videoId.isEmpty) continue;
-
-        File? thumbnailFile;
-        bool isTempThumbnail = false;
-        try {
-          // -- try getting cropped version if required
-          final channelName = await YoutubeInfoController.utils.getVideoChannelName(videoId);
-          const topic = '- Topic';
-          if (channelName != null && channelName.endsWith(topic)) {
-            final thumbFilePath = FileParts.joinPath(Directory.systemTemp.path, '$videoId.png');
-            final thumbFile = await YoutubeInfoController.video.fetchMusicVideoThumbnailToFile(videoId, thumbFilePath);
-            if (thumbFile != null) {
-              thumbnailFile = thumbFile;
-              isTempThumbnail = true;
-            }
-          }
-        } catch (_) {}
-
-        thumbnailFile ??= await ThumbnailManager.inst.getYoutubeThumbnailAndCache(
-          id: videoId,
-          isImportantInCache: true,
-          type: ThumbnailType.video,
-        );
-
-        if (thumbnailFile == null) {
-          currentFailed++;
-        } else {
-          final didUpdate = await editAudioThumbnail(
-            audioPath: filee.path,
-            thumbnailPath: thumbnailFile.path,
-          );
-          if (!didUpdate) currentFailed++;
-
-          if (isTempThumbnail) {
-            thumbnailFile.tryDeleting();
-          }
-        }
-
-        currentOperations[OperationType.ytdlpThumbnailFix]!.value = OperationProgress(
-          totalFiles: totalFilesLength,
-          progress: currentProgress,
-          currentFilePath: filee.path,
-          totalFailed: currentFailed,
-        );
-      }
-    }
-    currentOperations[OperationType.ytdlpThumbnailFix]!.value.currentFilePath = null;
   }
 
   /// * Extracts thumbnail from a given video, usually this tries to get embed thumbnail,

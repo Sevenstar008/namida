@@ -4,8 +4,8 @@ import 'package:path/path.dart' as p;
 
 import 'package:namida/class/track.dart';
 import 'package:namida/controller/lyrics_search_utils/lrc_search_details.dart';
+import 'package:namida/core/download_task_filename.dart';
 import 'package:namida/core/extensions.dart';
-import 'package:namida/youtube/class/download_task_base.dart';
 
 import 'lrc_search_utils_base.dart';
 

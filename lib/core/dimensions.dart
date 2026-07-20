@@ -11,8 +11,6 @@ import 'package:namida/core/enums.dart';
 import 'package:namida/core/extensions.dart';
 import 'package:namida/core/namida_converter_ext.dart';
 import 'package:namida/core/utils.dart';
-import 'package:namida/youtube/class/youtube_id.dart';
-import 'package:namida/youtube/youtube_miniplayer.dart';
 
 class Dimensions {
   static Dimensions get inst => _instance;
@@ -58,10 +56,7 @@ class Dimensions {
         : fab == FABType.none ||
               route == RouteType.SETTINGS_page || // bcz no search
               route == RouteType.SETTINGS_subpage || // bcz no search
-              route == RouteType.YOUTUBE_PLAYLIST_DOWNLOAD_SUBPAGE || // bcz has fab
               route == RouteType.SUBPAGE_INDEXER_UPDATE_MISSING_TRACKS || // bcz has fab
-              route == RouteType.YOUTUBE_USER_MANAGE_ACCOUNT_SUBPAGE || // bcz has middle button
-              route == RouteType.YOUTUBE_USER_MANAGE_SUBSCRIPTION_SUBPAGE || // bcz bcz..
               ((fab == FABType.shuffle || fab == FABType.play) && currentRoute?.hasTracksInsideReactive() != true) ||
               (settings.extra.selectedLibraryTab.valueR == LibraryTab.tracks && LibraryTab.tracks.isBarVisible.valueR == false);
     return shouldHide;
@@ -74,15 +69,7 @@ class Dimensions {
     final bottomNavHeight = settings.enableBottomNavBar.valueR && !Dimensions.inst.miniplayerIsWideScreen ? 0.0 : _getDeviceBottomGesturePaddingOrZero();
 
     final currentItem = Player.inst.currentItem.valueR;
-    return (currentItem is YoutubeID
-            ? settings.youtube.youtubeStyleMiniplayer.valueR
-                  ? kYoutubeMiniplayerHeight
-                  : _kMiniplayerBottomPadding
-            : currentItem is Selectable
-            ? _kMiniplayerBottomPadding
-            : 0.0) +
-        12.0 +
-        bottomNavHeight;
+    return (currentItem is Selectable ? _kMiniplayerBottomPadding : 0.0) + 12.0 + bottomNavHeight;
   }
 
   double _getDeviceBottomGesturePaddingOrZero() {
@@ -187,13 +174,6 @@ const kExpandableBoxHeight = 48.0;
 const kFABSize = 52.0;
 
 const kHistoryDayHeaderHeightWithPadding = kHistoryDayHeaderHeight + kHistoryDayListTopPadding + kHistoryDayListBottomPadding;
-
-// -- yt
-const kYoutubeHistoryDayHeaderHeight = 40.0;
-const kYoutubeHistoryDayListTopPadding = 6.0;
-const kYoutubeHistoryDayListBottomPadding = 12.0;
-
-const kYoutubeHistoryDayHeaderHeightWithPadding = kYoutubeHistoryDayHeaderHeight + kYoutubeHistoryDayListTopPadding + kYoutubeHistoryDayListBottomPadding;
 
 const kYTQueueSheetMinHeight = 60.0;
 

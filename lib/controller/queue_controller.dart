@@ -17,7 +17,6 @@ import 'package:namida/core/enums.dart';
 import 'package:namida/core/extensions.dart';
 import 'package:namida/core/functions.dart';
 import 'package:namida/core/utils.dart';
-import 'package:namida/youtube/class/youtube_id.dart';
 
 class QueueController {
   static final QueueController inst = QueueController._internal();
@@ -372,7 +371,7 @@ class _LatestPlayedForSourceManager {
     final res = await _dBManager.loadEverythingKeyedResult();
     for (final entry in res.entries) {
       final sourceRaw = jsonDecode(entry.key);
-      final QueueSourceBase source = QueueSource.fromJson(sourceRaw) ?? QueueSourceYoutubeID.fromJson(sourceRaw) ?? QueueSource.others(null);
+      final QueueSourceBase source = QueueSource.fromJson(sourceRaw) ?? QueueSource.others(null);
 
       final map = entry.value;
       final type = map['t'] as String;
@@ -427,13 +426,11 @@ class _LatestQueueSaver {
     'v': (p) => Video.explicit(p),
     'tr': (p) => Track.explicit(p),
     'twd': (p) => TrackWithDate.fromJson(p),
-    'ytv': (p) => YoutubeID.fromJson(p),
   };
 
   static const _typesMapLookup = <Type, String>{
     Video: 'v',
     Track: 'tr',
     TrackWithDate: 'twd',
-    YoutubeID: 'ytv',
   };
 }

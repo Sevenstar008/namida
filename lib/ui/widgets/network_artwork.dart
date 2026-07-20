@@ -10,6 +10,7 @@ import 'package:queue/queue.dart';
 import 'package:rhttp/rhttp.dart';
 
 import 'package:namida/base/loading_items_delay.dart';
+import 'package:namida/core/download_task_filename.dart';
 import 'package:namida/class/file_parts.dart';
 import 'package:namida/class/track.dart';
 import 'package:namida/controller/connectivity.dart';
@@ -24,7 +25,6 @@ import 'package:namida/core/namida_converter_ext.dart';
 import 'package:namida/core/utils.dart';
 import 'package:namida/ui/widgets/artwork.dart';
 import 'package:namida/ui/widgets/custom_widgets.dart';
-import 'package:namida/youtube/class/download_task_base.dart';
 
 class CustomArtworkManager {
   final File Function() getArtworkFile;

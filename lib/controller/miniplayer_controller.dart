@@ -22,8 +22,6 @@ import 'package:namida/core/utils.dart';
 import 'package:namida/packages/mp.dart';
 import 'package:namida/packages/scroll_physics_modified.dart';
 import 'package:namida/ui/widgets/custom_widgets.dart';
-import 'package:namida/youtube/class/youtube_id.dart';
-import 'package:namida/youtube/widgets/yt_queue_chip.dart';
 
 class MiniPlayerController {
   static MiniPlayerController get inst => _instance;
@@ -225,7 +223,7 @@ class MiniPlayerController {
   bool bounceUp = false;
   bool bounceDown = false;
 
-  double get _currentItemExtent => Player.inst.currentItem.value is YoutubeID ? Dimensions.youtubeCardItemExtent : Dimensions.inst.trackTileItemExtent;
+  double get _currentItemExtent => Dimensions.inst.trackTileItemExtent;
 
   void animateQueueToCurrentTrack({bool jump = false, bool minZero = false}) {
     if (queueScrollController.hasClients) {
@@ -302,7 +300,7 @@ class MiniPlayerController {
 
     if (_isInsideQueue()) {
       // a rough estimation of the top area when inside queue.
-      if (event.position.dy > ((WindowController.instance?.windowTitleBarHeightIfActive ?? 0) + 100 + _deadSpace + topInset + 12.0 + QueueChipHeaderRow.minHeight)) {
+      if (event.position.dy > ((WindowController.instance?.windowTitleBarHeightIfActive ?? 0) + 100 + _deadSpace + topInset + 12.0)) {
         return;
       }
     }

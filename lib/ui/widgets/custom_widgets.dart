@@ -64,8 +64,6 @@ import 'package:namida/ui/widgets/custom_tooltip.dart';
 import 'package:namida/ui/widgets/library/track_tile.dart';
 import 'package:namida/ui/widgets/popup_wrapper.dart';
 import 'package:namida/ui/widgets/settings/extra_settings.dart';
-import 'package:namida/youtube/class/youtube_id.dart';
-import 'package:namida/youtube/controller/youtube_info_controller.dart';
 
 import 'custom_reorderable_list.dart';
 
@@ -6827,8 +6825,7 @@ class SwipeQueueAddTileInfo {
     this.videoTitle,
   });
 
-  Color? get getCurrentColor =>
-      queueSource == QueueSourceYoutubeID.ytPlayerQueue || queueSource == QueueSourceYoutubeID.ytPlayerQueue ? CurrentColor.inst.miniplayerColor : CurrentColor.inst.color;
+  Color? get getCurrentColor => CurrentColor.inst.color;
 
   void copyToClipboard(String text) {
     NamidaUtils.copyToClipboard(
@@ -8072,25 +8069,18 @@ class _PlayableTitleSubtitleWidgetState extends State<PlayableTitleSubtitleWidge
     super.initState();
     _onPlayableChange();
     Player.inst.currentItem.addListener(_onPlayableChange);
-    if (widget.isYTID) {
-      YoutubeInfoController.current.currentVideoPage.addListener(_onPlayableChange);
-      YoutubeInfoController.current.currentYTStreams.addListener(_onPlayableChange);
-    }
   }
 
   @override
   void dispose() {
     super.dispose();
     Player.inst.currentItem.removeListener(_onPlayableChange);
-    YoutubeInfoController.current.currentVideoPage.removeListener(_onPlayableChange);
-    YoutubeInfoController.current.currentYTStreams.removeListener(_onPlayableChange);
   }
 
   void _onPlayableChange() async {
     final item = Player.inst.currentItem.value;
     item?.execute(
       selectable: _onLocalChange,
-      youtubeID: _onYTChange,
     );
   }
 
@@ -8100,24 +8090,6 @@ class _PlayableTitleSubtitleWidgetState extends State<PlayableTitleSubtitleWidge
     _channelName = track.originalArtist;
 
     refreshState();
-  }
-
-  void _onYTChange(YoutubeID item) async {
-    final vidId = item.id;
-
-    String? videoName = YoutubeInfoController.current.currentVideoPage.value?.videoInfo?.title;
-    if (videoName == null || videoName.isEmpty) videoName = YoutubeInfoController.current.currentYTStreams.value?.info?.title;
-    if (videoName == null || videoName.isEmpty) videoName = await YoutubeInfoController.utils.getVideoName(vidId);
-
-    String? channelName = YoutubeInfoController.current.currentVideoPage.value?.channelInfo?.title;
-    if (channelName == null || channelName.isEmpty) channelName = YoutubeInfoController.current.currentYTStreams.value?.info?.channelName;
-    if (channelName == null || channelName.isEmpty) channelName = await YoutubeInfoController.utils.getVideoChannelName(vidId);
-
-    if (videoName != _videoName || channelName != _channelName) {
-      _videoName = videoName;
-      _channelName = channelName;
-      refreshState();
-    }
   }
 
   @override

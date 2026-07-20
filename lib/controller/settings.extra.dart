@@ -3,16 +3,9 @@ part of 'settings_controller.dart';
 class _ExtraSettings with SettingsFileWriter {
   _ExtraSettings._internal();
 
-  int getPreferredTabIndexIfLoggedInYT() {
-    final activeChannel = YoutubeAccountController.current.activeAccountChannel.value;
-    if (activeChannel != null) return 1;
-    return 0;
-  }
-
   final selectedLibraryTab = LibraryTab.tracks.obs;
   final staticLibraryTab = LibraryTab.tracks.obs;
   final autoLibraryTab = true.obs;
-  final ytInitialHomePage = YTHomePages.playlists.obs;
   final preferredSearchType = RxnF<SearchType>(fallback: SearchType.auto);
 
   bool? tapToScroll;
@@ -27,9 +20,6 @@ class _ExtraSettings with SettingsFileWriter {
 
   int lastPlayedIndex = 0;
 
-  int? ytAddToPlaylistsTabIndex;
-  int? ytPlaylistsPageIndex;
-  int? ytChannelsPageIndex;
   int? audioConfigPageIndex;
 
   bool windowMaximized = false;
@@ -39,7 +29,6 @@ class _ExtraSettings with SettingsFileWriter {
     LibraryTab? selectedLibraryTab,
     LibraryTab? staticLibraryTab,
     bool? autoLibraryTab,
-    YTHomePages? ytInitialHomePage,
     SearchType? preferredSearchType,
     bool? tapToScroll,
     bool? enhancedDragToScroll,
@@ -51,9 +40,6 @@ class _ExtraSettings with SettingsFileWriter {
     bool? artistSinglesExpanded,
     bool? ytStyleButtonSwitcher,
     int? lastPlayedIndex,
-    int? ytAddToPlaylistsTabIndex,
-    int? ytPlaylistsPageIndex,
-    int? ytChannelsPageIndex,
     int? audioConfigPageIndex,
     Rect? windowBounds,
     bool? windowMaximized,
@@ -61,7 +47,6 @@ class _ExtraSettings with SettingsFileWriter {
     if (selectedLibraryTab != null) this.selectedLibraryTab.value = selectedLibraryTab;
     if (staticLibraryTab != null) this.staticLibraryTab.value = staticLibraryTab;
     if (autoLibraryTab != null) this.autoLibraryTab.value = autoLibraryTab;
-    if (ytInitialHomePage != null) this.ytInitialHomePage.value = ytInitialHomePage;
     if (preferredSearchType != null) this.preferredSearchType.value = preferredSearchType;
     if (tapToScroll != null) this.tapToScroll = tapToScroll;
     if (enhancedDragToScroll != null) this.enhancedDragToScroll = enhancedDragToScroll;
@@ -73,9 +58,6 @@ class _ExtraSettings with SettingsFileWriter {
     if (artistSinglesExpanded != null) this.artistSinglesExpanded = artistSinglesExpanded;
     if (ytStyleButtonSwitcher != null) this.ytStyleButtonSwitcher = ytStyleButtonSwitcher;
     if (lastPlayedIndex != null) this.lastPlayedIndex = lastPlayedIndex;
-    if (ytAddToPlaylistsTabIndex != null) this.ytAddToPlaylistsTabIndex = ytAddToPlaylistsTabIndex;
-    if (ytPlaylistsPageIndex != null) this.ytPlaylistsPageIndex = ytPlaylistsPageIndex;
-    if (ytChannelsPageIndex != null) this.ytChannelsPageIndex = ytChannelsPageIndex;
     if (audioConfigPageIndex != null) this.audioConfigPageIndex = audioConfigPageIndex;
     if (windowBounds != null) this.windowBounds = windowBounds;
     if (windowMaximized != null) this.windowMaximized = windowMaximized;
@@ -99,7 +81,6 @@ class _ExtraSettings with SettingsFileWriter {
           ? LibraryTab.values.getEnum(json['selectedLibraryTab']) ?? selectedLibraryTab.value
           : LibraryTab.values.getEnum(json['staticLibraryTab']) ?? staticLibraryTab.value;
       autoLibraryTab.value = autoLibraryTabFinal;
-      ytInitialHomePage.value = YTHomePages.values.getEnum(json['ytInitialHomePage']) ?? ytInitialHomePage.value;
       preferredSearchType.value = SearchType.values.getEnum(json['preferredSearchType']) ?? preferredSearchType.value;
 
       tapToScroll = json['tapToScroll'] ?? tapToScroll;
@@ -112,9 +93,6 @@ class _ExtraSettings with SettingsFileWriter {
       artistSinglesExpanded = json['artistSinglesExpanded'] ?? artistSinglesExpanded;
       ytStyleButtonSwitcher = json['ytStyleButtonSwitcher'] ?? ytStyleButtonSwitcher;
       lastPlayedIndex = json['lastPlayedIndex'] ?? lastPlayedIndex;
-      ytAddToPlaylistsTabIndex = json['ytAddToPlaylistsTabIndex'] ?? ytAddToPlaylistsTabIndex;
-      ytPlaylistsPageIndex = json['ytPlaylistsPageIndex'] ?? ytPlaylistsPageIndex;
-      ytChannelsPageIndex = json['ytChannelsPageIndex'] ?? ytChannelsPageIndex;
       audioConfigPageIndex = json['audioConfigPageIndex'] ?? audioConfigPageIndex;
 
       final windowBoundsJson = json['windowBounds'];
@@ -138,7 +116,6 @@ class _ExtraSettings with SettingsFileWriter {
     'selectedLibraryTab': selectedLibraryTab.value.name,
     'staticLibraryTab': staticLibraryTab.value.name,
     'autoLibraryTab': autoLibraryTab.value,
-    'ytInitialHomePage': ytInitialHomePage.value.name,
     'preferredSearchType': ?preferredSearchType.value?.name,
     if (tapToScroll != null) 'tapToScroll': tapToScroll,
     if (enhancedDragToScroll != null) 'enhancedDragToScroll': enhancedDragToScroll,
@@ -150,9 +127,6 @@ class _ExtraSettings with SettingsFileWriter {
     if (artistSinglesExpanded != null) 'artistSinglesExpanded': artistSinglesExpanded,
     if (ytStyleButtonSwitcher != null) 'ytStyleButtonSwitcher': ytStyleButtonSwitcher,
     'lastPlayedIndex': lastPlayedIndex,
-    'ytAddToPlaylistsTabIndex': ?ytAddToPlaylistsTabIndex,
-    'ytPlaylistsPageIndex': ?ytPlaylistsPageIndex,
-    'ytChannelsPageIndex': ?ytChannelsPageIndex,
     'audioConfigPageIndex': ?audioConfigPageIndex,
     if (windowBounds != null)
       'windowBounds': {

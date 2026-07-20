@@ -34,8 +34,6 @@ import 'package:namida/ui/widgets/animated_widgets.dart';
 import 'package:namida/ui/widgets/custom_widgets.dart';
 import 'package:namida/ui/widgets/settings/customization_settings.dart';
 import 'package:namida/ui/widgets/settings/theme_settings.dart';
-import 'package:namida/youtube/class/youtube_id.dart';
-import 'package:namida/youtube/controller/youtube_local_search_controller.dart';
 
 class MainPage extends StatelessWidget {
   final AnimationController animation;
@@ -228,7 +226,7 @@ class MainPage extends StatelessWidget {
                     final currentItem = Player.inst.currentItem.valueR;
                     return CustomAnimatedSwitcher(
                       duration: const Duration(milliseconds: 600),
-                      child: currentItem is Selectable || (currentItem is YoutubeID && !settings.youtube.youtubeStyleMiniplayer.valueR)
+                      child: currentItem is Selectable
                           ? SizedBox(
                               key: const Key('actualglow'),
                               height: 28.0,
@@ -360,11 +358,11 @@ class __MainPageFABButtonState extends State<_MainPageFABButton> {
   void _onTap() {
     final fab = settings.floatingActionButton.value;
     final isMenuOpened = ScrollSearchController.inst.isGlobalSearchMenuShown.value;
-    if (fab == FABType.search || isMenuOpened) {
-      if (_shouldShowSubmitSearch && ScrollSearchController.inst.currentSearchType.value == SearchType.youtube) {
-        ScrollSearchController.inst.searchBarWidget.submit(ScrollSearchController.inst.searchTextEditingController.text);
-        return;
-      }
+      if (fab == FABType.search || isMenuOpened) {
+        if (_shouldShowSubmitSearch) {
+          ScrollSearchController.inst.searchBarWidget.submit(ScrollSearchController.inst.searchTextEditingController.text);
+          return;
+        }
       final isOpen = ScrollSearchController.inst.searchBarKey.currentState?.isOpen ?? false;
       if (isOpen && !isMenuOpened) {
         SearchSortController.inst.prepareResources();
@@ -422,7 +420,7 @@ class __MainPageFABButtonState extends State<_MainPageFABButton> {
                         rx: ScrollSearchController.inst.currentSearchType,
                         builder: (context, currentSearchType) => NamidaFABButton(
                           tooltip: _tooltip,
-                          icon: _shouldShowSubmitSearch && currentSearchType == SearchType.youtube ? Broken.search_normal : Broken.shield_slash,
+                          icon: _shouldShowSubmitSearch ? Broken.search_normal : Broken.shield_slash,
                           onTap: _onTap,
                         ),
                       ),
@@ -516,13 +514,6 @@ class MainPageFABResumeButton extends StatelessWidget {
         if (index < 0) index = 0;
         return callback(index, tracks, currentRoute);
       },
-      youtubeID: (latestItem) {
-        final videos = currentRoute.videosListInside();
-        var index = videos.indexWhere((e) => e == latestItem);
-        if (index < 0) index = videos.indexWhere((e) => e.id == latestItem.id);
-        if (index < 0) index = 0;
-        return callback(index, videos, currentRoute);
-      },
     );
   }
 
@@ -559,7 +550,7 @@ class MainPageFABResumeButton extends StatelessWidget {
   }
 
   static void _resumeFABJumpToItem(int index, List<Playable> items, NamidaRoute currentRoute) {
-    final itemExtent = items.firstOrNull is YoutubeID ? Dimensions.youtubeCardItemExtent : Dimensions.inst.trackTileItemExtent;
+    final itemExtent = Dimensions.inst.trackTileItemExtent;
     return jumpToItem(index, itemExtent, currentRoute.route);
   }
 
@@ -626,12 +617,6 @@ class NamidaSearchBar extends StatelessWidget {
     final didOpen = NamidaLinkUtils.tryOpeningPlaylistOrVideo(val);
     if (didOpen) {
       ScrollSearchController.inst.searchTextEditingController.clear();
-      return;
-    }
-
-    if (ScrollSearchController.inst.currentSearchType.value == SearchType.youtube) {
-      ScrollSearchController.inst.latestSubmittedYTSearch.value = val;
-      ScrollSearchController.inst.ytSearchKey.currentState?.fetchSearch(customText: val);
     }
   }
 
@@ -648,7 +633,7 @@ class NamidaSearchBar extends StatelessWidget {
       enableKeyboardFocus: true,
       isOriginalAnimation: false,
       textEditingController: ScrollSearchController.inst.searchTextEditingController,
-      hintText: /*  ScrollSearchController.inst.currentSearchType.value == SearchType.youtube ? lang.searchYoutube : */ lang.search,
+      hintText: lang.search,
       searchBoxWidth: context.width / 1.2,
       buttonColour: Colors.transparent,
       enableBoxShadow: false,
@@ -719,7 +704,6 @@ class NamidaSearchBar extends StatelessWidget {
           ClipboardController.inst.setClipboardMonitoringStatus(settings.enableClipboardMonitoring.value);
         } else {
           SearchSortController.inst.disposeResources();
-          YTLocalSearchController.inst.cleanResources();
           ClipboardController.inst.setClipboardMonitoringStatus(false);
         }
       },

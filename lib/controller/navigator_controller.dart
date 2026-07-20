@@ -28,8 +28,6 @@ import 'package:namida/core/utils.dart';
 import 'package:namida/ui/widgets/animated_widgets.dart';
 import 'package:namida/ui/widgets/custom_widgets.dart';
 import 'package:namida/ui/widgets/inner_drawer.dart';
-import 'package:namida/youtube/controller/youtube_playlist_controller.dart';
-import 'package:namida/youtube/widgets/yt_queue_chip.dart';
 
 class NamidaNavigator {
   static NamidaNavigator get inst => _instance;
@@ -63,7 +61,6 @@ class NamidaNavigator {
   final _openedNumbersManager = _OpenedNumbersManager();
 
   final innerDrawerKey = GlobalKey<NamidaInnerDrawerState>();
-  final ytQueueSheetKey = GlobalKey<YTMiniplayerQueueChipState>();
   final heroController = HeroController();
 
   bool _isInLanscape = false;
@@ -538,11 +535,7 @@ class NamidaNavigator {
     }
 
     if (MiniPlayerController.inst.ytMiniplayerKey.currentState?.isExpanded == true) {
-      if (isQueueSheetOpen) {
-        ytQueueSheetKey.currentState?.dismissSheet();
-        isQueueSheetOpen = false;
-        return;
-      } else if (isInYTCommentRepliesSubpage) {
+      if (isInYTCommentRepliesSubpage) {
         ytMiniplayerCommentsPageKey.currentState?.pop();
         isInYTCommentRepliesSubpage = false;
         return;
@@ -583,8 +576,6 @@ class NamidaNavigator {
         if (!canIgoBackPls) return;
       } else if (route == RouteType.SUBPAGE_playlistTracks || route == RouteType.SUBPAGE_favPlaylistTracks) {
         PlaylistController.inst.resetCanReorder();
-      } else if (route == RouteType.YOUTUBE_PLAYLIST_SUBPAGE || route == RouteType.YOUTUBE_LIKED_SUBPAGE) {
-        YoutubePlaylistController.inst.resetCanReorder();
       }
     }
 

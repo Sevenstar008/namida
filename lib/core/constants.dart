@@ -34,7 +34,6 @@ import 'package:namida/core/enums.dart';
 import 'package:namida/core/extensions.dart';
 import 'package:namida/core/namida_converter_ext.dart';
 import 'package:namida/core/translations/language.dart';
-import 'package:namida/youtube/pages/yt_playlist_subpage.dart';
 
 final isDesktop = Platform.isWindows || Platform.isLinux || Platform.isMacOS;
 
@@ -240,26 +239,10 @@ class NamidaLinkUtils {
   }
 
   static Future<bool> openLinkPreferNamida(String url, {ThemeData? theme}) {
-    final didOpen = tryOpeningPlaylistOrVideo(url, theme: theme);
-    if (didOpen) return Future.value(true);
     return openLink(url);
   }
 
   static bool tryOpeningPlaylistOrVideo(String url, {ThemeData? theme}) {
-    final possiblePlaylistId = NamidaLinkUtils.extractPlaylistId(url);
-    if (possiblePlaylistId != null && possiblePlaylistId.isNotEmpty) {
-      YTHostedPlaylistSubpage.fromId(
-        playlistId: possiblePlaylistId,
-        userPlaylist: null,
-      ).navigate();
-      return true;
-    }
-
-    final possibleVideoId = NamidaLinkUtils.extractYoutubeId(url);
-    if (possibleVideoId != null && possibleVideoId.isNotEmpty) {
-      OnYoutubeLinkOpenAction.alwaysAsk.execute([possibleVideoId], theme: theme);
-      return true;
-    }
     return false;
   }
 
@@ -296,7 +279,6 @@ enum AppPathsBackupEnum {
   SETTINGS,
   SETTINGS_EQUALIZER,
   SETTINGS_PLAYER,
-  SETTINGS_YOUTUBE,
   SETTINGS_EXTRA,
   SETTINGS_TUTORIAL,
   SETTINGS_SHORTCUTS,
@@ -319,11 +301,6 @@ enum AppPathsBackupEnum {
   TOTAL_LISTEN_TIME,
   FAVOURITES_PLAYLIST,
 
-  // ================= Youtube =================
-  YT_LIKES_PLAYLIST,
-  YT_SUBSCRIPTIONS,
-  YT_SUBSCRIPTIONS_GROUPS_ALL,
-  VIDEO_ID_STATS_DB_INFO,
   CACHE_VIDEOS_PRIORITY,
 
   // ------======== Directories ========------
@@ -345,19 +322,8 @@ enum AppPathsBackupEnum {
   M3UBackup(true),
   RECENTLY_DELETED(true),
 
-  // ================= Youtube =================
-
   YOUTIPIE_CACHE(true),
 
-  YT_PLAYLISTS(true),
-  YT_PLAYLISTS_ARTWORKS(true),
-  YT_PLAYLISTS_METADATA(true),
-  YT_HISTORY_PLAYLIST(true),
-  YT_THUMBNAILS(true),
-  YT_THUMBNAILS_CHANNELS(true),
-
-  YT_STATS(true),
-  YT_PALETTES(true),
   YT_DOWNLOAD_TASKS(true),
   ;
 
@@ -369,7 +335,6 @@ enum AppPathsBackupEnum {
       AppPathsBackupEnum.SETTINGS => AppPaths.SETTINGS,
       AppPathsBackupEnum.SETTINGS_EQUALIZER => AppPaths.SETTINGS_EQUALIZER,
       AppPathsBackupEnum.SETTINGS_PLAYER => AppPaths.SETTINGS_PLAYER,
-      AppPathsBackupEnum.SETTINGS_YOUTUBE => AppPaths.SETTINGS_YOUTUBE,
       AppPathsBackupEnum.SETTINGS_EXTRA => AppPaths.SETTINGS_EXTRA,
       AppPathsBackupEnum.SETTINGS_TUTORIAL => AppPaths.SETTINGS_TUTORIAL,
       AppPathsBackupEnum.SETTINGS_SHORTCUTS => AppPaths.SETTINGS_SHORTCUTS,
@@ -387,10 +352,6 @@ enum AppPathsBackupEnum {
       AppPathsBackupEnum.VIDEOS_CACHE_OLD => AppPaths.VIDEOS_CACHE_OLD,
       AppPathsBackupEnum.TOTAL_LISTEN_TIME => AppPaths.TOTAL_LISTEN_TIME,
       AppPathsBackupEnum.FAVOURITES_PLAYLIST => AppPaths.FAVOURITES_PLAYLIST,
-      AppPathsBackupEnum.YT_LIKES_PLAYLIST => AppPaths.YT_LIKES_PLAYLIST,
-      AppPathsBackupEnum.YT_SUBSCRIPTIONS => AppPaths.YT_SUBSCRIPTIONS,
-      AppPathsBackupEnum.YT_SUBSCRIPTIONS_GROUPS_ALL => AppPaths.YT_SUBSCRIPTIONS_GROUPS_ALL,
-      AppPathsBackupEnum.VIDEO_ID_STATS_DB_INFO => AppPaths.VIDEO_ID_STATS_DB_INFO.file.path,
       AppPathsBackupEnum.CACHE_VIDEOS_PRIORITY => AppPaths.CACHE_VIDEOS_PRIORITY.file.path,
       AppPathsBackupEnum.HISTORY_PLAYLIST => AppDirs.HISTORY_PLAYLIST,
       AppPathsBackupEnum.PLAYLISTS => AppDirs.PLAYLISTS,
@@ -409,14 +370,6 @@ enum AppPathsBackupEnum {
       AppPathsBackupEnum.M3UBackup => AppDirs.M3UBackup,
       AppPathsBackupEnum.RECENTLY_DELETED => AppDirs.RECENTLY_DELETED,
       AppPathsBackupEnum.YOUTIPIE_CACHE => AppDirs.YOUTIPIE_CACHE,
-      AppPathsBackupEnum.YT_PLAYLISTS => AppDirs.YT_PLAYLISTS,
-      AppPathsBackupEnum.YT_PLAYLISTS_ARTWORKS => AppDirs.YT_PLAYLISTS_ARTWORKS,
-      AppPathsBackupEnum.YT_PLAYLISTS_METADATA => AppDirs.YT_PLAYLISTS_METADATA,
-      AppPathsBackupEnum.YT_HISTORY_PLAYLIST => AppDirs.YT_HISTORY_PLAYLIST,
-      AppPathsBackupEnum.YT_THUMBNAILS => AppDirs.YT_THUMBNAILS,
-      AppPathsBackupEnum.YT_THUMBNAILS_CHANNELS => AppDirs.YT_THUMBNAILS_CHANNELS,
-      AppPathsBackupEnum.YT_STATS => AppDirs.YT_STATS,
-      AppPathsBackupEnum.YT_PALETTES => AppDirs.YT_PALETTES,
       AppPathsBackupEnum.YT_DOWNLOAD_TASKS => AppDirs.YT_DOWNLOAD_TASKS,
     };
   }
@@ -427,16 +380,12 @@ class AppPathsBackupEnumCategories {
 
   static final everything = [
     ...AppPathsBackupEnumCategories.database,
-    ...AppPathsBackupEnumCategories.database_yt,
     ...AppPathsBackupEnumCategories.settings,
     ...AppPathsBackupEnumCategories.history,
-    ...AppPathsBackupEnumCategories.history_yt,
     ...AppPathsBackupEnumCategories.playlists,
-    ...AppPathsBackupEnumCategories.playlists_yt,
     ...AppPathsBackupEnumCategories.queues,
     ...AppPathsBackupEnumCategories.lyrics,
     ...AppPathsBackupEnumCategories.palette,
-    ...AppPathsBackupEnumCategories.palette_yt,
   ];
 
   static List<AppPathsBackupEnum> database = [
@@ -452,11 +401,7 @@ class AppPathsBackupEnumCategories {
     AppPathsBackupEnum.VIDEOS_LOCAL_OLD,
     AppPathsBackupEnum.VIDEOS_LOCAL_DB_INFO,
     AppPathsBackupEnum.YT_DOWNLOAD_TASKS,
-    AppPathsBackupEnum.VIDEO_ID_STATS_DB_INFO,
     AppPathsBackupEnum.CACHE_VIDEOS_PRIORITY,
-  ];
-  static List<AppPathsBackupEnum> database_yt = [
-    AppPathsBackupEnum.YT_STATS,
   ];
 
   static List<AppPathsBackupEnum> playlists = [
@@ -467,18 +412,9 @@ class AppPathsBackupEnumCategories {
     AppPathsBackupEnum.PLAYLISTS_METADATA,
     AppPathsBackupEnum.FAVOURITES_PLAYLIST,
   ];
-  static List<AppPathsBackupEnum> playlists_yt = [
-    AppPathsBackupEnum.YT_PLAYLISTS,
-    AppPathsBackupEnum.YT_PLAYLISTS_ARTWORKS,
-    AppPathsBackupEnum.YT_PLAYLISTS_METADATA,
-    AppPathsBackupEnum.YT_LIKES_PLAYLIST,
-  ];
 
   static List<AppPathsBackupEnum> history = [
     AppPathsBackupEnum.HISTORY_PLAYLIST,
-  ];
-  static List<AppPathsBackupEnum> history_yt = [
-    AppPathsBackupEnum.YT_HISTORY_PLAYLIST,
   ];
 
   static List<AppPathsBackupEnum> settings = [
@@ -488,7 +424,6 @@ class AppPathsBackupEnumCategories {
     AppPathsBackupEnum.SETTINGS_PLAYER,
     AppPathsBackupEnum.SETTINGS_TUTORIAL,
     AppPathsBackupEnum.SETTINGS_SHORTCUTS,
-    AppPathsBackupEnum.SETTINGS_YOUTUBE,
   ];
 
   static List<AppPathsBackupEnum> lyrics = [
@@ -502,10 +437,6 @@ class AppPathsBackupEnumCategories {
 
   static List<AppPathsBackupEnum> palette = [
     AppPathsBackupEnum.PALETTES,
-  ];
-
-  static List<AppPathsBackupEnum> palette_yt = [
-    AppPathsBackupEnum.YT_PALETTES,
   ];
 
   static List<AppPathsBackupEnum> videos_cache = [
@@ -525,10 +456,6 @@ class AppPathsBackupEnumCategories {
   static List<AppPathsBackupEnum> thumbnails = [
     AppPathsBackupEnum.THUMBNAILS,
   ];
-  static List<AppPathsBackupEnum> thumbnails_yt = [
-    AppPathsBackupEnum.YT_THUMBNAILS,
-    AppPathsBackupEnum.YT_THUMBNAILS_CHANNELS,
-  ];
 
   static List<AppPathsBackupEnum> youtipie_cache = [
     AppPathsBackupEnum.YOUTIPIE_CACHE,
@@ -547,7 +474,6 @@ class AppPaths {
   static final SETTINGS = _join(_USER_DATA, 'namida_settings.json');
   static final SETTINGS_EQUALIZER = _join(_USER_DATA, 'namida_settings_eq.json');
   static final SETTINGS_PLAYER = _join(_USER_DATA, 'namida_settings_player.json');
-  static final SETTINGS_YOUTUBE = _join(_USER_DATA, 'namida_settings_youtube.json');
   static final SETTINGS_EXTRA = _join(_USER_DATA, 'namida_settings_extra.json');
   static final SETTINGS_TUTORIAL = _join(_USER_DATA, 'namida_settings_tutorial.json');
   static final SETTINGS_SHORTCUTS = _join(_USER_DATA, 'namida_settings_shortcuts.json');
@@ -612,7 +538,6 @@ class AppPaths {
         AppPaths.SETTINGS,
         AppPaths.SETTINGS_EQUALIZER,
         AppPaths.SETTINGS_PLAYER,
-        AppPaths.SETTINGS_YOUTUBE,
         AppPaths.SETTINGS_EXTRA,
         AppPaths.SETTINGS_TUTORIAL,
         AppPaths.SETTINGS_SHORTCUTS,
@@ -726,11 +651,6 @@ class AppPaths {
   static final NAMIDA_LOGO = '${AppDirs.ARTWORKS}.ARTWORKS.NAMIDA_DEFAULT_ARTWORK.PNG';
   static final NAMIDA_LOGO_LAYER = '${AppDirs.ARTWORKS}.ARTWORKS.NAMIDA_DEFAULT_ARTWORK_LAYER.PNG';
 
-  // ================= Youtube =================
-  static final YT_LIKES_PLAYLIST = _join(AppDirs.YOUTUBE_MAIN_DIRECTORY, 'yt_likes.json');
-  static final YT_SUBSCRIPTIONS = _join(AppDirs.YOUTUBE_MAIN_DIRECTORY, 'yt_subs.json');
-  static final YT_SUBSCRIPTIONS_GROUPS_ALL = _join(AppDirs.YOUTUBE_MAIN_DIRECTORY, 'yt_sub_groups.json');
-  static final VIDEO_ID_STATS_DB_INFO = DbWrapperFileInfo(directory: AppDirs.YOUTUBE_MAIN_DIRECTORY, dbName: 'ytid_stats');
   static final CACHE_VIDEOS_PRIORITY = DbWrapperFileInfo(directory: _USER_DATA, dbName: 'cache_videos_priority');
 }
 
@@ -761,6 +681,8 @@ class AppDirs {
   static final AUDIOS_CACHE = _join(USER_DATA, 'Audios');
   static final VIDEOS_CACHE_TEMP = _join(USER_DATA, 'Videos', 'Temp');
   static final THUMBNAILS = _join(USER_DATA, 'Thumbnails'); // extracted video thumbnails
+  static final YT_THUMBNAILS = _join(USER_DATA, 'YTThumbnails');
+  static final YT_THUMBNAILS_CHANNELS = _join(USER_DATA, 'YTThumbnails Channels');
   static final LYRICS = _join(USER_DATA, 'Lyrics');
   static final M3UBackup = _join(USER_DATA, 'M3U Backup'); // backups m3u on first found
   static final RECENTLY_DELETED = _join(USER_DATA, 'Recently Deleted'); // stores files that was deleted recently
@@ -773,25 +695,11 @@ class AppDirs {
   static final BACKUPS = _join(INTERNAL_STORAGE, 'Backups'); // only one without ending slash.
   static final COMPRESSED_IMAGES = _join(INTERNAL_STORAGE, 'Compressed');
   static final M3UPlaylists = _join(INTERNAL_STORAGE, 'M3U Playlists');
-  static final YOUTUBE_DOWNLOADS_DEFAULT = _join(INTERNAL_STORAGE, 'Downloads');
-  static String get YOUTUBE_DOWNLOADS => settings.youtube.ytDownloadLocation.value;
 
-  // ================= Youtube =================
-  static final YOUTUBE_MAIN_DIRECTORY = _join(USER_DATA, 'Youtube');
-
-  static final YOUTIPIE_CACHE = _join(YOUTUBE_MAIN_DIRECTORY, 'Youtipie');
+  static final YOUTIPIE_CACHE = _join(USER_DATA, 'Youtipie');
   static final YOUTIPIE_DATA = _join(ROOT_DIR, 'Youtipie', 'Youtipie_data'); // this should never be accessed/backed up etc.
 
-  static final YT_PLAYLISTS = _join(YOUTUBE_MAIN_DIRECTORY, 'Youtube Playlists');
-  static final YT_PLAYLISTS_ARTWORKS = _join(YOUTUBE_MAIN_DIRECTORY, 'Youtube Playlists Artworks');
-  static final YT_PLAYLISTS_METADATA = _join(YOUTUBE_MAIN_DIRECTORY, 'Youtube Playlists Metadata');
-  static final YT_HISTORY_PLAYLIST = _join(YOUTUBE_MAIN_DIRECTORY, 'Youtube History');
-  static final YT_THUMBNAILS = _join(YOUTUBE_MAIN_DIRECTORY, 'YTThumbnails');
-  static final YT_THUMBNAILS_CHANNELS = _join(YOUTUBE_MAIN_DIRECTORY, 'YTThumbnails Channels');
-
-  static final YT_STATS = _join(YOUTUBE_MAIN_DIRECTORY, 'Youtube Stats');
-  static final YT_PALETTES = _join(YOUTUBE_MAIN_DIRECTORY, 'Palettes');
-  static final YT_DOWNLOAD_TASKS = _join(YOUTUBE_MAIN_DIRECTORY, 'Download Tasks');
+  static final YT_DOWNLOAD_TASKS = _join(USER_DATA, 'Download Tasks');
 
   // ===========================================
   static final List<String> values = [
@@ -813,19 +721,10 @@ class AppDirs {
     M3UBackup,
     RECENTLY_DELETED,
     LOGS_DIRECTORY,
-    // -- Youtube
-    YOUTUBE_MAIN_DIRECTORY,
-    YT_PLAYLISTS,
-    YT_PLAYLISTS_ARTWORKS,
-    YT_HISTORY_PLAYLIST,
+    YOUTIPIE_CACHE,
+    YT_DOWNLOAD_TASKS,
     YT_THUMBNAILS,
     YT_THUMBNAILS_CHANNELS,
-
-    YOUTIPIE_CACHE,
-
-    YT_STATS,
-    YT_PALETTES,
-    YT_DOWNLOAD_TASKS,
     // Internal Storage Directories are created on demand
   ];
 }

@@ -70,14 +70,6 @@ import 'package:namida/packages/scroll_physics_modified.dart';
 import 'package:namida/ui/pages/onboarding.dart';
 import 'package:namida/ui/widgets/custom_widgets.dart';
 import 'package:namida/ui/widgets/video_widget.dart';
-import 'package:namida/youtube/controller/youtube_account_controller.dart';
-import 'package:namida/youtube/controller/youtube_controller.dart';
-import 'package:namida/youtube/controller/youtube_history_controller.dart';
-import 'package:namida/youtube/controller/youtube_info_controller.dart';
-import 'package:namida/youtube/controller/youtube_playlist_controller.dart';
-import 'package:namida/youtube/controller/youtube_subscriptions_controller.dart';
-import 'package:namida/youtube/controller/yt_miniplayer_ui_controller.dart';
-import 'package:namida/youtube/pages/yt_playlist_subpage.dart';
 
 void main(List<String> args) {
   runZonedGuarded(
@@ -229,19 +221,15 @@ Future<bool> _mainAppInitialization() async {
 
     args = Zone.current['args'] as List<String>? ?? [];
 
-    final ytInfoInitSyncItemsCompleter = Completer<void>();
-
     /// even tho we don't really need to wait for queue, it's better as to
     /// minimize startup lag as this changes some app-level vars like color scheme
     FutureOr<void> prepareLatestQueue() {
       if (args != null && args.isNotEmpty) {
         // -- will play from args instead of latest queue
       } else if (!shouldShowOnBoarding) {
-        return ytInfoInitSyncItemsCompleter.future.whenComplete(QueueController.inst.prepareLatestQueueAndLatestPlayedForSourceAsync);
+        return QueueController.inst.prepareLatestQueueAndLatestPlayedForSourceAsync();
       }
     }
-
-    YoutubeInfoController.initialize(ytInfoInitSyncItemsCompleter).catchError(logger.report);
 
     if (settings.player.internalPlayer.value.shouldInitializeMPV) {
       mk.MediaKit.ensureInitialized.ignoreError();
@@ -250,8 +238,6 @@ Future<bool> _mainAppInitialization() async {
     await [
       if (!shouldShowOnBoarding) Indexer.inst.prepareTracksFile(startupBoost: true).whenComplete(Player.inst.refreshNotification),
       PlaylistController.inst.prepareDefaultPlaylistsFileAsync(),
-      YoutubePlaylistController.inst.prepareDefaultPlaylistsFileAsync(),
-      YoutubeSubscriptionsController.inst.loadSubscriptionsFileAsync(),
       ConnectivityController.inst.initialize(),
       FlutterDisplayMode.setHighRefreshRate().ignoreError(), // ignore cuz whatever
       NamidaNavigator.setSystemUIImmersiveMode(false),
@@ -263,7 +249,6 @@ Future<bool> _mainAppInitialization() async {
         },
       ),
       NamidaFFMPEG.configure(),
-      ytInfoInitSyncItemsCompleter.future,
     ].executeAllAndSilentReportErrors();
 
     // -- best to initialize last, so that tracks are prepared (for info/colors) and rhttp is initialized (for network), etc.
@@ -295,19 +280,12 @@ Future<void> _secondaryAppInitialization(bool shouldShowOnBoarding) async {
     _initializeIntenties();
     _initLifeCycle();
 
-    YoutubeAccountController.initialize();
-
     await [
-      YoutubeInfoController.utils.fillBackupInfoMap(), // for history videos info.
-
       HistoryController.inst.prepareHistoryFile().then((_) => Indexer.inst.sortMediaTracksAndSubListsAfterHistoryPrepared()), //
-      YoutubeHistoryController.inst.prepareHistoryFile(),
 
       PlaylistController.inst.prepareAllPlaylists(),
-      YoutubePlaylistController.inst.prepareAllPlaylists(),
 
       VideoController.inst.initialize(),
-      YoutubeController.inst.loadDownloadTasksInfoFileAsync(),
 
       NotificationManager.init(),
       FlutterVolumeController.updateShowSystemUI(false),
@@ -329,7 +307,6 @@ Future<void> _secondaryAppInitialization(bool shouldShowOnBoarding) async {
 }
 
 void _recheckTimeAwareEssentials() async {
-  YoutubeAccountController.fetchAccSupportDetails();
   await BackupController.inst.checkForAutoBackup();
   const StorageCacheManager().trimExtraFiles();
   VersionController.inst.ensureRefreshed();
@@ -493,7 +470,6 @@ class Namida extends StatefulWidget {
   }
 
   static Future<void> _disposeAllResources() async {
-    YoutubeInfoController.dispose();
     await [
       logger.dispose(),
       Player.inst.pause().whenComplete(Player.inst.dispose),
@@ -642,7 +618,6 @@ class _NamidaState extends State<Namida> {
                                 if (newPlatformBrightness != platformBrightness) {
                                   platformBrightness = newPlatformBrightness;
                                   mainApp = buildMainApp(widget, platformBrightness);
-                                  YoutubeMiniplayerUiController.inst.startDimTimer(brightness: platformBrightness);
                                 }
                                 return mainApp;
                               },
@@ -753,8 +728,6 @@ class NamidaReceiveIntentManager {
       if (linkRaw != null) {
         final link = Platform.isAndroid ? linkRaw.replaceAll(r'\', '') : linkRaw;
         if (link.startsWith('app://patreonauth.msob7y.namida')) {
-          final link = Platform.isAndroid ? linkRaw.replaceAll(r'\', '') : linkRaw;
-          YoutubeAccountController.membership.redirectUrlCompleter?.completeIfWasnt(link);
           return;
         }
       }
@@ -789,29 +762,13 @@ class NamidaReceiveIntentManager {
           final err = await _extractAndPlayExternalFiles(allTracks.map((e) => e.path));
           if (err != null) showErrorPlayingFileSnackbar(error: err);
         } else if (paths.isNotEmpty) {
-          final youtubeIds = paths.map((e) {
-            final id = e.getYoutubeID;
-            return id == '' ? null : id;
-          }).whereType<String>();
-          final ytPlaylistsIds = paths.map((e) {
-            final matchPlId = e.isEmpty ? null : NamidaLinkUtils.extractPlaylistId(e);
-            return matchPlId;
-          }).whereType<String>();
-          if (youtubeIds.isNotEmpty) {
-            settings.youtube.onYoutubeLinkOpen.value.execute(youtubeIds);
-          } else if (ytPlaylistsIds.isNotEmpty) {
-            for (final plid in ytPlaylistsIds) {
-              YTHostedPlaylistSubpage.fromId(playlistId: plid, userPlaylist: null).navigate();
-            }
-          } else {
-            // -- this for sussy links
-            final existing = paths.where((element) {
-              final type = FileSystemEntity.typeSync(element);
-              return type == FileSystemEntityType.file || type == FileSystemEntityType.directory;
-            });
-            final err = await _extractAndPlayExternalFiles(existing);
-            if (err != null) showErrorPlayingFileSnackbar(error: err);
-          }
+          // -- this for sussy links
+          final existing = paths.where((element) {
+            final type = FileSystemEntity.typeSync(element);
+            return type == FileSystemEntityType.file || type == FileSystemEntityType.directory;
+          });
+          final err = await _extractAndPlayExternalFiles(existing);
+          if (err != null) showErrorPlayingFileSnackbar(error: err);
         }
       }
     });

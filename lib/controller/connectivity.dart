@@ -3,7 +3,6 @@ import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 
-import 'package:namida/controller/settings_controller.dart';
 import 'package:namida/core/enums.dart';
 import 'package:namida/core/extensions.dart';
 import 'package:namida/core/utils.dart';
@@ -14,8 +13,7 @@ class ConnectivityController {
   ConnectivityController._internal();
 
   DataSaverMode get dataSaverMode {
-    final hasHighConnection = ConnectivityController.inst.hasHighConnection;
-    return hasHighConnection ? settings.youtube.dataSaverMode.value : settings.youtube.dataSaverModeMobile.value;
+    return DataSaverMode.off;
   }
 
   StreamSubscription<List<ConnectivityResult>>? _streamSub;

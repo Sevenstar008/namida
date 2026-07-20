@@ -47,9 +47,6 @@ import 'package:namida/ui/dialogs/track_info_dialog.dart';
 import 'package:namida/ui/widgets/custom_widgets.dart';
 import 'package:namida/ui/widgets/library/multi_artwork_container.dart';
 import 'package:namida/ui/widgets/network_artwork.dart';
-import 'package:namida/youtube/class/youtube_id.dart';
-import 'package:namida/youtube/controller/youtube_info_controller.dart';
-import 'package:namida/youtube/pages/yt_channel_subpage.dart';
 
 Future<void> showGeneralPopupDialog(
   List<Track> tracks,
@@ -130,9 +127,6 @@ Future<void> showGeneralPopupDialog(
   final Set<AlbumIdentifierWrapper> availableAlbums = tracks.toUniqueAlbums();
   final List<String> availableArtists = tracks.mappedUniquedList((e) => e.toTrackExt().artistsList);
   final List<Folder> availableFolders = tracks.mapAsPhysical().mappedUniqued((e) => e.folder);
-
-  final Iterable<YoutubeID> availableYoutubeIDs = tracks.map((e) => YoutubeID(id: e.youtubeID, playlistID: null)).where((element) => element.id.isNotEmpty);
-  final String? firstVideolId = availableYoutubeIDs.firstOrNull?.id;
 
   final numberOfRepeats = 1.obso;
 
@@ -770,38 +764,7 @@ Future<void> showGeneralPopupDialog(
         final iconColor = Color.alphaBlend(colorDelightened.withAlpha(120), theme.textTheme.displayMedium!.color!);
         double horizontalMargin = Dimensions.calculateDialogHorizontalMargin(context, 34.0);
 
-        final openInYtViewWidget = availableYoutubeIDs.isNotEmpty
-            ? SmallListTile(
-                color: colorDelightened,
-                compact: true,
-                title: lang.openInYoutubeView,
-                icon: Broken.video,
-                onTap: () {
-                  NamidaNavigator.inst.closeDialog();
-                  Player.inst.playOrPause(0, availableYoutubeIDs, QueueSource.others(title), gentlePlay: true);
-                },
-                trailing: isSingle && firstVideolId != null
-                    ? FutureBuilder(
-                        future: YoutubeInfoController.utils.getVideoChannelID(firstVideolId),
-                        builder: (context, snapshot) {
-                          final firstVideoChannelId = snapshot.data;
-                          return firstVideoChannelId != null
-                              ? IconButton(
-                                  tooltip: lang.goToChannel,
-                                  icon: Icon(
-                                    Broken.user,
-                                    size: 20.0,
-                                    color: iconColor,
-                                  ),
-                                  iconSize: 20.0,
-                                  onPressed: YTChannelSubpage(channelID: firstVideoChannelId).navigate,
-                                )
-                              : const SizedBox();
-                        },
-                      )
-                    : null,
-              )
-            : null;
+        final openInYtViewWidget = null;
 
         return AnimatedThemeOrTheme(
           data: theme,
@@ -1389,30 +1352,6 @@ Future<void> showGeneralPopupDialog(
                                               ),
                                             ),
                                     ),
-                                    if (isSingle) ...[
-                                      const SizedBox(width: 8.0),
-                                      Expanded(
-                                        child: bigIcon(
-                                          Broken.edit_2,
-                                          () => lang.setYoutubeLink,
-                                          () => showSetYTLinkCommentDialog(tracks.first, colorDelightened),
-                                          iconWidget: StackedIcon(
-                                            baseIcon: Broken.edit_2,
-                                            secondaryIcon: Broken.video_square,
-                                            baseIconColor: iconColor,
-                                            secondaryIconColor: iconColor,
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8.0),
-                                      Expanded(
-                                        child: bigIcon(
-                                          Broken.login_1,
-                                          () => lang.openYoutubeLink,
-                                          openYoutubeLink,
-                                        ),
-                                      ),
-                                    ],
                                     const SizedBox(width: 24.0),
                                   ],
                                 ),

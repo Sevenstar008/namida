@@ -23,7 +23,6 @@ import 'package:namida/ui/widgets/circular_percentages.dart';
 import 'package:namida/ui/widgets/custom_widgets.dart';
 import 'package:namida/ui/widgets/settings/extra_settings.dart';
 import 'package:namida/ui/widgets/settings_card.dart';
-import 'package:namida/youtube/controller/youtube_history_controller.dart';
 
 enum _BackupAndRestoreKeys with SettingKeysBase {
   create,
@@ -31,7 +30,6 @@ enum _BackupAndRestoreKeys with SettingKeysBase {
   defaultLocation,
   autoBackupInterval,
   crossPlatformSync,
-  importYT,
   importLastfm,
 }
 
@@ -48,12 +46,11 @@ class BackupAndRestore extends SettingSubpageProvider {
     _BackupAndRestoreKeys.defaultLocation: [lang.defaultBackupLocation],
     _BackupAndRestoreKeys.autoBackupInterval: [lang.autoBackupInterval],
     _BackupAndRestoreKeys.crossPlatformSync: [lang.crossPlatformSync],
-    _BackupAndRestoreKeys.importYT: [lang.importYoutubeHistory],
     _BackupAndRestoreKeys.importLastfm: [lang.importLastFmHistory],
   };
 
   bool _canDoImport({required bool isYT}) {
-    if (JsonToHistoryParser.inst.isParsing.value || HistoryController.inst.isLoadingHistory || (isYT && YoutubeHistoryController.inst.isLoadingHistory)) {
+    if (JsonToHistoryParser.inst.isParsing.value || HistoryController.inst.isLoadingHistory) {
       snackyy(title: lang.note, message: lang.anotherProcessIsRunning);
       return false;
     }
@@ -61,7 +58,7 @@ class BackupAndRestore extends SettingSubpageProvider {
   }
 
   bool _canCreateRestoreBackup() {
-    if (JsonToHistoryParser.inst.isParsing.value || HistoryController.inst.isLoadingHistory || YoutubeHistoryController.inst.isLoadingHistory) {
+    if (JsonToHistoryParser.inst.isParsing.value || HistoryController.inst.isLoadingHistory) {
       snackyy(title: lang.note, message: lang.anotherProcessIsRunning);
       return false;
     }
@@ -584,172 +581,6 @@ class BackupAndRestore extends SettingSubpageProvider {
               title: lang.crossPlatformSync,
               icon: Broken.cloud_change,
               onTap: _openNamidaSync,
-            ),
-          ),
-
-          // -- Import Youtube History
-          getItemWrapper(
-            key: _BackupAndRestoreKeys.importYT,
-            child: CustomListTile(
-              bgColor: getBgColor(_BackupAndRestoreKeys.importYT),
-              title: lang.importYoutubeHistory,
-              leading: StackedIcon(
-                baseIcon: Broken.import_2,
-                smallChild: BorderRadiusClip(
-                  borderRadius: BorderRadius.circular(12.0.multipliedRadius),
-                  child: Image.asset(
-                    'assets/icons/youtube.png',
-                    width: 12,
-                    height: 12,
-                  ),
-                ),
-              ),
-              trailing: const SizedBox(
-                height: 32.0,
-                width: 32.0,
-                child: ParsingJsonPercentage(
-                  size: 32.0,
-                  source: TrackSource.youtube,
-                  forceDisplay: false,
-                ),
-              ),
-              onTap: () {
-                if (!_canDoImport(isYT: true)) return;
-
-                void onConfirm(bool pickDirectory) async {
-                  Widget getTitleText(String text) => Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8.0).add(const EdgeInsets.only(bottom: 10.0)),
-                    child: Text("- $text", style: namida.textTheme.displayLarge),
-                  );
-
-                  var jsonfiles = <File>[];
-                  Directory? mainDirectory;
-                  if (pickDirectory) {
-                    mainDirectory = await NamidaFileBrowser.pickDirectory(note: lang.importYoutubeHistory);
-                  } else {
-                    jsonfiles = await NamidaFileBrowser.pickFiles(note: lang.importYoutubeHistory, allowedExtensions: NamidaFileExtensionsWrapper.jsonAndZip);
-                  }
-                  if (jsonfiles.isNotEmpty || mainDirectory != null) {
-                    final isMatchingTypeLink = true.obs;
-                    final isMatchingTypeTitleAndArtist = false.obs;
-                    final matchYT = true.obs;
-                    final matchYTMusic = true.obs;
-                    final matchAll = false.obs;
-                    final oldestDate = Rxn<DateTime>();
-                    DateTime? newestDate;
-                    NamidaNavigator.inst.navigateDialog(
-                      onDisposing: () {
-                        isMatchingTypeLink.close();
-                        isMatchingTypeTitleAndArtist.close();
-                        matchYT.close();
-                        matchYTMusic.close();
-                        matchAll.close();
-                        oldestDate.close();
-                      },
-                      dialog: CustomBlurryDialog(
-                        title: lang.configure,
-                        actions: [
-                          Obx(
-                            (context) => NamidaButton(
-                              enabled: isMatchingTypeLink.valueR || isMatchingTypeTitleAndArtist.valueR,
-                              text: oldestDate.valueR != null ? lang.importTimeRange : lang.importAll,
-                              onTap: () async {
-                                NamidaNavigator.inst.closeDialog();
-                                await JsonToHistoryParser.inst.addFilesSourceToNamidaHistory(
-                                  files: jsonfiles,
-                                  mainDirectory: mainDirectory,
-                                  source: TrackSource.youtube,
-                                  ytIsMatchingTypeLink: isMatchingTypeLink.value,
-                                  isMatchingTypeTitleAndArtist: isMatchingTypeTitleAndArtist.value,
-                                  ytMatchYT: matchYT.value,
-                                  ytMatchYTMusic: matchYTMusic.value,
-                                  oldestDate: oldestDate.value,
-                                  newestDate: newestDate,
-                                  matchAll: matchAll.value,
-                                );
-                              },
-                            ),
-                          ),
-                        ],
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            getTitleText(lang.source),
-                            ListTileWithCheckMark(
-                              activeRx: matchYT,
-                              title: lang.youtube,
-                              onTap: matchYT.toggle,
-                            ),
-                            const SizedBox(height: 8.0),
-                            ListTileWithCheckMark(
-                              activeRx: matchYTMusic,
-                              title: lang.youtubeMusic,
-                              onTap: matchYTMusic.toggle,
-                            ),
-                            getDivider(),
-                            getTitleText(lang.matchingType),
-                            ListTileWithCheckMark(
-                              activeRx: isMatchingTypeLink,
-                              title: lang.link,
-                              onTap: isMatchingTypeLink.toggle,
-                            ),
-                            const SizedBox(height: 8.0),
-                            ListTileWithCheckMark(
-                              activeRx: isMatchingTypeTitleAndArtist,
-                              title: [lang.title, lang.artist].join(' & '),
-                              onTap: isMatchingTypeTitleAndArtist.toggle,
-                            ),
-                            getDivider(),
-                            Obx(
-                              (context) => matchAllTracksListTile(
-                                active: matchAll.valueR,
-                                onTap: matchAll.toggle,
-                                displayPerfWarning: isMatchingTypeTitleAndArtist.valueR, // link matching wont result in perf issue
-                              ),
-                            ),
-                            getDivider(),
-                            BetweenDatesTextButton(
-                              useHistoryDates: false,
-                              maxToday: true,
-                              onConfirm: (dates) {
-                                oldestDate.value = dates.firstOrNull;
-                                newestDate = dates.lastOrNull;
-                                NamidaNavigator.inst.closeDialog();
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }
-                }
-
-                NamidaNavigator.inst.navigateDialog(
-                  dialog: CustomBlurryDialog(
-                    title: lang.guide,
-                    actions: [
-                      NamidaButton(
-                        text: lang.folder,
-                        onTap: () {
-                          NamidaNavigator.inst.closeDialog();
-                          onConfirm(true);
-                        },
-                      ),
-                      SizedBox(width: 2.0),
-                      NamidaButton(
-                        text: lang.confirm,
-                        onTap: () {
-                          NamidaNavigator.inst.closeDialog();
-                          onConfirm(false);
-                        },
-                      ),
-                    ],
-                    child: NamidaSelectableAutoLinkText(
-                      text: lang.importYoutubeHistoryGuide(takeoutLink: 'https://takeout.google.com/takeout/custom/youtube'),
-                    ),
-                  ),
-                );
-              },
             ),
           ),
 

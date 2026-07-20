@@ -13,9 +13,8 @@ import 'package:playlist_manager/class/favourite_playlist.dart';
 import 'package:youtipie/class/streams/video_stream.dart';
 import 'package:youtipie/class/streams/video_streams_result.dart';
 import 'package:youtipie/core/enum.dart';
-import 'package:youtipie/core/extensions.dart' show StreamFilterVideoUtils, CodecInfoUtils;
+import 'package:youtipie/core/extensions.dart' show StreamFilterVideoUtils, CodecInfoUtils';
 
-import 'package:namida/base/yt_video_like_manager.dart';
 import 'package:namida/class/track.dart';
 import 'package:namida/class/video.dart';
 import 'package:namida/controller/connectivity.dart';
@@ -47,11 +46,8 @@ import 'package:namida/ui/widgets/custom_widgets.dart';
 import 'package:namida/ui/widgets/library/track_tile.dart';
 import 'package:namida/ui/widgets/settings/extra_settings.dart';
 import 'package:namida/ui/widgets/settings/playback_settings.dart';
-import 'package:namida/ui/widgets/settings/youtube_settings.dart';
 import 'package:namida/ui/widgets/waveform.dart';
-import 'package:namida/youtube/seek_ready_widget.dart';
-import 'package:namida/youtube/widgets/yt_history_video_card.dart';
-import 'package:namida/youtube/widgets/yt_queue_chip.dart';
+
 
 class FocusedMenuOptions {
   final void Function(Playable currentItem) onPressed;
@@ -91,7 +87,6 @@ class MiniplayerInfoData<E, S> {
   final bool enableTextLongTap;
   final IconData likedIcon;
   final IconData normalIcon;
-  final YtVideoLikeManager? ytLikeManager;
 
   late final bool firstLineGood;
   late final bool secondLineGood;
@@ -108,7 +103,6 @@ class MiniplayerInfoData<E, S> {
     this.enableTextLongTap = false,
     required this.likedIcon,
     required this.normalIcon,
-    this.ytLikeManager,
   }) : firstLineGood = firstLine.isNotEmpty,
        secondLineGood = secondLine.isNotEmpty;
 }
@@ -382,14 +376,6 @@ class _NamidaMiniPlayerBaseState<E, S> extends State<NamidaMiniPlayerBase<E, S>>
 
     final onSecondary = theme.colorScheme.onSecondaryContainer;
     const waveformChild = RepaintBoundary(child: WaveformMiniplayer());
-    const seekReadyWidget = SeekReadyWidget(
-      isLocal: true,
-      isFullscreen: false,
-      showSponsorBlockSegments: false,
-      showBufferBars: false,
-      clampCircleEdges: false,
-      useReducedProgressColor: true,
-    );
 
     final topBottomMargin = 8.0.spaceY;
 
@@ -507,30 +493,6 @@ class _NamidaMiniPlayerBaseState<E, S> extends State<NamidaMiniPlayerBase<E, S>>
       mainAxisAlignment: MainAxisAlignment.end,
       mainAxisSize: MainAxisSize.max,
       children: [
-        if (widget.videoTileConfigs != null && settings.extra.ytStyleButtonSwitcher == true)
-          _CustomIconButton(
-            tooltipCallback: () => lang.youtubeStyleMiniplayer,
-            onPressed: () {
-              MiniPlayerController.inst.snapToMini(haptic: false);
-              NamidaYTMiniplayer.setInitialExpanded(true);
-
-              settings.youtube.save(youtubeStyleMiniplayer: true);
-
-              Timer(
-                const Duration(milliseconds: 100),
-                () {
-                  final ytMiniplayer = MiniPlayerController.inst.ytMiniplayerKey.currentState;
-                  if (ytMiniplayer != null && ytMiniplayer.isExpanded == false) ytMiniplayer.animateToState(true, dur: const Duration(milliseconds: 200));
-                },
-              );
-            },
-            sizeRaw: 19.0,
-            icon: Icon(
-              Broken.video_octagon,
-              size: 19.0.size,
-              color: theme.colorScheme.onSecondaryContainer,
-            ),
-          ),
         RepeatModeIconButton(
           iconSize: _CustomIconButton.defaultIconSize.size,
           builder: (child, tooltipCallback, onTap) => _CustomIconButton(
@@ -607,37 +569,6 @@ class _NamidaMiniPlayerBaseState<E, S> extends State<NamidaMiniPlayerBase<E, S>>
                 queueItemExtentBuilder: widget.queueItemExtentBuilder,
                 itemBuilder: (context, index, currentIndex, queue) =>
                     _queueItemBuilder(context, index, currentIndex, queue, trackTileProperties: properties, videoTileProperties: null),
-              ),
-            ),
-          ],
-        ),
-      );
-    } else if (widget.videoTileConfigs != null) {
-      queueListChild = VideoTilePropertiesProvider(
-        configs: widget.videoTileConfigs!,
-        builder: (properties) => Column(
-          children: [
-            DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Color.alphaBlend(scaffoldBgColor.withOpacityExt(0.90), colorScheme).withOpacityExt(0.5),
-                    Color.alphaBlend(scaffoldBgColor.withOpacityExt(0.65), colorScheme).withOpacityExt(0.5),
-                  ],
-                ),
-              ),
-              child: YTQueueChipHeaderRow(
-                addLeftMargin: true,
-              ),
-            ),
-            Expanded(
-              child: _QueueListChildWrapper(
-                queueItemExtent: widget.queueItemExtent,
-                queueItemExtentBuilder: widget.queueItemExtentBuilder,
-                itemBuilder: (context, index, currentIndex, queue) =>
-                    _queueItemBuilder(context, index, currentIndex, queue, trackTileProperties: null, videoTileProperties: properties),
               ),
             ),
           ],
@@ -838,7 +769,7 @@ class _NamidaMiniPlayerBaseState<E, S> extends State<NamidaMiniPlayerBase<E, S>>
                             if (currentId != null &&
                                 currentId.isNotEmpty &&
                                 (focusedMenuOptions.streams.value?.videoStreams
-                                        .withoutWebmIfNeccessaryOrExperimentalCodecs(allowExperimentalCodecs: settings.youtube.allowExperimentalCodecs)
+                                        .withoutWebmIfNeccessaryOrExperimentalCodecs(allowExperimentalCodecs: false)
                                         .isEmpty ??
                                     true)) {
                               focusedMenuOptions.loadQualities!(currentItem);
@@ -860,7 +791,7 @@ class _NamidaMiniPlayerBaseState<E, S> extends State<NamidaMiniPlayerBase<E, S>>
                             final currentId = focusedMenuOptions.currentId(currentItem);
                             final availableVideos = focusedMenuOptions.localVideos.valueR;
                             final ytVideos = focusedMenuOptions.streams.valueR?.videoStreams.withoutWebmIfNeccessaryOrExperimentalCodecs(
-                              allowExperimentalCodecs: settings.youtube.allowExperimentalCodecs,
+                              allowExperimentalCodecs: false,
                             );
 
                             final audioTracks = Player.inst.audioTracks.valueR;
@@ -880,20 +811,6 @@ class _NamidaMiniPlayerBaseState<E, S> extends State<NamidaMiniPlayerBase<E, S>>
                                       ),
                                     ),
                                   ),
-                                ),
-                                Obx(
-                                  (context) {
-                                    final hasHighConnection = ConnectivityController.inst.hasHighConnection;
-                                    final rx = hasHighConnection ? settings.youtube.dataSaverMode : settings.youtube.dataSaverModeMobile;
-                                    final value = rx.valueR;
-                                    final isOff = value == DataSaverMode.off;
-                                    return _MPQualityButton(
-                                      title: lang.dataSaver,
-                                      onTap: () => YoutubeSettings.openDataSaverConfigureDialog(),
-                                      subtitle: isOff ? '' : value.toText(),
-                                      icon: Broken.blur,
-                                    );
-                                  },
                                 ),
                                 if (currentId == null || currentId.isEmpty)
                                   _MPQualityButton(
@@ -1780,7 +1697,7 @@ class _NamidaMiniPlayerBaseState<E, S> extends State<NamidaMiniPlayerBase<E, S>>
                           right: borderRadius.bottomRight.x + 4.0,
                           child: FadeIgnoreTransition(
                             opacity: progressBarOpacityAnimation,
-                            child: seekReadyWidget,
+                            child: const SizedBox(),
                           ),
                         ),
 
@@ -1866,7 +1783,6 @@ class _TrackInfo<E, S> extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = context.theme;
     final textTheme = theme.textTheme;
-    final ytLikeManager = textData.ytLikeManager;
 
     final paddingAll = 12.0.space * (1 - bcp);
     final paddingAllHorizontal = (paddingAll + 24.0.spaceX * bcp) * (1 - qcp);
@@ -1940,50 +1856,20 @@ class _TrackInfo<E, S> extends StatelessWidget {
                         child: LongPressDetector(
                           enableSecondaryTap: true,
                           onLongPress: textData.onShowAddToPlaylistDialog,
-                          child: ytLikeManager != null
-                              ? ObxO(
-                                  rx: ytLikeManager.currentVideoLikeStatus,
-                                  builder: (context, currentLikeStatus) {
-                                    final isUserLiked = currentLikeStatus == LikeStatus.liked;
-                                    return NamidaLoadingSwitcher(
-                                      size: 32.0.size,
-                                      builder: (loadingController) => NamidaRawLikeButton(
-                                        size: 32.0.size,
-                                        enableGradient: true,
-                                        likedIcon: textData.likedIcon,
-                                        normalIcon: textData.normalIcon,
-                                        enabledColor: theme.colorScheme.primary.withOpacityExt(0.75),
-                                        disabledColor: theme.colorScheme.secondary.withOpacityExt(0.75),
-                                        removeConfirmationAction: null, // manually managed
-                                        isLiked: isUserLiked,
-                                        onTap: (isLiked) async {
-                                          return ytLikeManager.onLikeClicked(
-                                            YTVideoLikeParamters(
-                                              isActive: isLiked,
-                                              action: isLiked ? LikeAction.removeLike : LikeAction.addLike,
-                                              onStart: loadingController.startLoading,
-                                              onEnd: loadingController.stopLoading,
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                    );
-                                  },
-                                )
-                              : ObxOClass(
-                                  rx: textData.favouritePlaylist,
-                                  builder: (context, favouritePlaylist) => NamidaRawLikeButton(
-                                    size: 32.0.size,
-                                    enableGradient: true,
-                                    likedIcon: textData.likedIcon,
-                                    normalIcon: textData.normalIcon,
-                                    enabledColor: theme.colorScheme.primary.withOpacityExt(0.75),
-                                    disabledColor: theme.colorScheme.secondary.withOpacityExt(0.75),
-                                    removeConfirmationAction: lang.removeFromFavourites,
-                                    isLiked: favouritePlaylist.isSubItemFavourite(textData.itemToLike),
-                                    onTap: textData.onLikeTap,
-                                  ),
-                                ),
+                          child: ObxOClass(
+                            rx: textData.favouritePlaylist,
+                            builder: (context, favouritePlaylist) => NamidaRawLikeButton(
+                              size: 32.0.size,
+                              enableGradient: true,
+                              likedIcon: textData.likedIcon,
+                              normalIcon: textData.normalIcon,
+                              enabledColor: theme.colorScheme.primary.withOpacityExt(0.75),
+                              disabledColor: theme.colorScheme.secondary.withOpacityExt(0.75),
+                              removeConfirmationAction: lang.removeFromFavourites,
+                              isLiked: favouritePlaylist.isSubItemFavourite(textData.itemToLike),
+                              onTap: textData.onLikeTap,
+                            ),
+                          ),
                         ),
                       ),
                     ),

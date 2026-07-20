@@ -27,10 +27,6 @@ import 'package:namida/core/translations/language.dart';
 import 'package:namida/core/utils.dart';
 import 'package:namida/ui/dialogs/track_advanced_dialog.dart';
 import 'package:namida/ui/widgets/custom_widgets.dart';
-import 'package:namida/youtube/class/youtube_id.dart';
-import 'package:namida/youtube/controller/youtube_history_controller.dart';
-import 'package:namida/youtube/controller/youtube_import_controller.dart';
-import 'package:namida/youtube/controller/youtube_info_controller.dart';
 
 class JsonToHistoryParser {
   static JsonToHistoryParser get inst => _instance;
@@ -42,8 +38,6 @@ class JsonToHistoryParser {
   final addedHistoryJsonToPlaylist = 0.obs;
   final isParsing = false.obs;
   final _loadingFileProgress = (0, 0).obs;
-  final _updatingYoutubeStatsDirectoryProgress = 0.obs;
-  final _updatingYoutubeStatsDirectoryTotal = 0.obs;
   final Rx<TrackSource> currentParsingSource = TrackSource.local.obs;
   final _currentOldestDate = Rxn<DateTime>();
   final _currentNewestDate = Rxn<DateTime>();
@@ -117,13 +111,6 @@ class JsonToHistoryParser {
                 getTextWidget(dateText, style: namida.textTheme.displaySmall),
                 const SizedBox(height: 4.0),
               ],
-              const SizedBox(height: 4.0),
-              Obx((context) {
-                final shouldShow = currentParsingSource.valueR == TrackSource.youtube || currentParsingSource.valueR == TrackSource.youtubeMusic;
-                return shouldShow
-                    ? getTextWidget('${lang.stats}: ${_updatingYoutubeStatsDirectoryProgress.valueR}/${_updatingYoutubeStatsDirectoryTotal.valueR}')
-                    : const SizedBox();
-              }),
             ],
           ),
         ),
@@ -370,8 +357,6 @@ class JsonToHistoryParser {
     totalJsonToParse.value = 0;
     parsedHistoryJson.value = 0;
     addedHistoryJsonToPlaylist.value = 0;
-    _updatingYoutubeStatsDirectoryProgress.value = 0;
-    _updatingYoutubeStatsDirectoryTotal.value = 0;
     _currentOldestDate.value = null;
     _currentNewestDate.value = null;
   }
@@ -383,10 +368,6 @@ class JsonToHistoryParser {
     Directory? mainDirectory,
     required TrackSource source,
     bool matchAll = false,
-    bool ytIsMatchingTypeLink = true,
-    bool isMatchingTypeTitleAndArtist = false,
-    bool ytMatchYT = true,
-    bool ytMatchYTMusic = true,
     DateTime? oldestDate,
     DateTime? newestDate,
   }) async {
@@ -425,29 +406,9 @@ class JsonToHistoryParser {
     });
 
     final datesAdded = <int>[];
-    final datesAddedYoutube = <int>[];
     var allMissingEntries = <_MissingListenEntry, List<int>>{};
 
     switch (source) {
-      case TrackSource.youtube || TrackSource.youtubeMusic:
-        currentParsingSource.value = TrackSource.youtube;
-        final res = await _parseYTHistoryJsonAndAdd(
-          files: files,
-          isMatchingTypeLink: ytIsMatchingTypeLink,
-          isMatchingTypeTitleAndArtist: isMatchingTypeTitleAndArtist,
-          matchYT: ytMatchYT,
-          matchYTMusic: ytMatchYTMusic,
-          oldestDate: oldestDate,
-          newestDate: newestDate,
-          matchAll: matchAll,
-        );
-        if (res != null) {
-          allMissingEntries = res.missingEntries;
-          datesAdded.addAll(res.historyDays);
-          datesAddedYoutube.addAll(res.ytHistoryDays);
-        }
-        break;
-
       case TrackSource.lastfm:
         currentParsingSource.value = TrackSource.lastfm;
         final res = await _addLastFmSource(
@@ -470,14 +431,6 @@ class JsonToHistoryParser {
     HistoryController.inst.sortHistoryTracks(datesAdded);
     await HistoryController.inst.saveHistoryToStorage(datesAdded);
     HistoryController.inst.updateMostPlayedPlaylist();
-
-    // -- youtube history --
-    if (datesAddedYoutube.isNotEmpty) {
-      YoutubeHistoryController.inst.removeDuplicatedItems(datesAddedYoutube);
-      YoutubeHistoryController.inst.sortHistoryTracks(datesAddedYoutube);
-      await YoutubeHistoryController.inst.saveHistoryToStorage(datesAddedYoutube);
-      YoutubeHistoryController.inst.updateMostPlayedPlaylist();
-    }
 
     isParsing.value = false;
 
@@ -525,516 +478,25 @@ class JsonToHistoryParser {
     final int total = contents.length;
     if (total == 0) return [];
 
-    if (source == TrackSource.youtube || source == TrackSource.youtubeMusic) {
-      for (final file in contents) {
-        progress++;
-        onProgress(progress, total);
-        if (file is File) {
-          await executeFileEnsureZipExtracted(
-            file,
-            (file) {
-              if (NamidaFileExtensionsWrapper.json.isPathValid(file.path)) {
-                final name = file.path.getFilename;
-                if (name.contains('watch-history')) files.add(file);
-              }
-            },
-          );
-        }
-      }
-    } else {
-      for (final file in contents) {
-        progress++;
-        onProgress(progress, total);
-        if (file is File) {
-          await executeFileEnsureZipExtracted(
-            file,
-            (file) {
-              if (NamidaFileExtensionsWrapper.csv.isPathValid(file.path)) {
-                // folder shouldnt contain yt playlists/etc csv files tho, otherwise wer cooked
-                final name = file.path.getFilename;
-                if (name != 'subscriptions.csv') files.add(file);
-              }
-            },
-          );
-        }
+    for (final file in contents) {
+      progress++;
+      onProgress(progress, total);
+      if (file is File) {
+        await executeFileEnsureZipExtracted(
+          file,
+          (file) {
+            if (NamidaFileExtensionsWrapper.csv.isPathValid(file.path)) {
+              // folder shouldnt contain yt playlists/etc csv files tho, otherwise wer cooked
+              final name = file.path.getFilename;
+              if (name != 'subscriptions.csv') files.add(file);
+            }
+          },
+        );
       }
     }
     return files;
   }
 
-  Future<({List<int> historyDays, List<int> ytHistoryDays, Map<_MissingListenEntry, List<int>> missingEntries})?> _parseYTHistoryJsonAndAdd({
-    required List<File> files,
-    required bool isMatchingTypeLink,
-    required bool isMatchingTypeTitleAndArtist,
-    required bool matchYT,
-    required bool matchYTMusic,
-    required DateTime? oldestDate,
-    required DateTime? newestDate,
-    required bool matchAll,
-  }) async {
-    final portProgressParsed = RawReceivePort((message) {
-      parsedHistoryJson.value += message as int;
-    });
-    final portProgressAdded = RawReceivePort((message) {
-      addedHistoryJsonToPlaylist.value += message as int;
-    });
-    final portLoadingProgress = ReceivePort();
-
-    final params = {
-      'tracks': Indexer.inst.allTracksMappedByPath.values
-          .map(
-            (e) => {
-              'title': e.title,
-              'album': e.originalAlbum,
-              'artist': e.originalArtist,
-              'path': e.path,
-              'filename': e.filename,
-              'comment': e.comment,
-              'v': e.isVideo,
-            },
-          )
-          .toFixedList(),
-      'files': files,
-      'isMatchingTypeLink': isMatchingTypeLink,
-      'isMatchingTypeTitleAndArtist': isMatchingTypeTitleAndArtist,
-      'matchYT': matchYT,
-      'matchYTMusic': matchYTMusic,
-      'oldestDay': oldestDate?.toDaysSince1970(),
-      'newestDay': newestDate?.toDaysSince1970(),
-      'matchAll': matchAll,
-      'artistsSplitConfig': ArtistsSplitConfig.settings().toMap(),
-      'portProgressParsed': portProgressParsed.sendPort,
-      'portProgressAdded': portProgressAdded.sendPort,
-      'portLoadingProgress': portLoadingProgress.sendPort,
-      'localHistory': HistoryController.inst.historyMap.value,
-      'ytHistory': YoutubeHistoryController.inst.historyMap.value,
-    };
-
-    StreamSubscription? portLoadingProgressSub;
-    portLoadingProgressSub = portLoadingProgress.listen((message) {
-      message as int;
-      final shouldClosePort = !message.isNegative;
-      message = message.abs();
-      totalJsonToParse.value = message;
-      _loadingFileProgress.value = (_loadingFileProgress.value.$2, _loadingFileProgress.value.$2);
-      if (shouldClosePort) {
-        portLoadingProgress.close();
-        portLoadingProgressSub?.cancel();
-      }
-    });
-    HistoryController.inst.setIdleStatus(true);
-    YoutubeHistoryController.inst.setIdleStatus(true);
-
-    final res = await _parseYTHistoryJsonAndAddIsolate.thready(params);
-    portProgressParsed.close();
-    portProgressAdded.close();
-
-    if (res != null) {
-      final mapOfAffectedIds = res.affectedIds;
-
-      if (mapOfAffectedIds != null) {
-        _updatingYoutubeStatsDirectoryTotal.value = mapOfAffectedIds.length;
-        await _updateYoutubeStatsDirectory(
-          affectedIds: mapOfAffectedIds,
-          onProgress: (updatedIdsCount) {
-            _updatingYoutubeStatsDirectoryProgress.value += updatedIdsCount;
-            printy('updatedIds: $updatedIdsCount');
-          },
-        );
-        YoutubeInfoController.utils.fillBackupInfoMap();
-      }
-
-      HistoryController.inst.historyMap.value = res.localHistory;
-      YoutubeHistoryController.inst.historyMap.value = res.ytHistory;
-      if (res.addedLocalHistoryCount > 0) {
-        HistoryController.inst.totalHistoryItemsCount.value += res.addedLocalHistoryCount;
-        HistoryController.inst.totalHistoryItemsCount.refresh();
-      }
-      if (res.addedYTHistoryCount > 0) {
-        YoutubeHistoryController.inst.totalHistoryItemsCount.value += res.addedYTHistoryCount;
-        YoutubeHistoryController.inst.totalHistoryItemsCount.refresh();
-      }
-    }
-
-    await Future.wait([
-      HistoryController.inst.setIdleStatus(false),
-      YoutubeHistoryController.inst.setIdleStatus(false),
-    ]);
-
-    return res == null
-        ? null
-        : (
-            historyDays: res.daysToSaveLocal,
-            ytHistoryDays: res.daysToSaveYT,
-            missingEntries: res.missingEntries,
-          );
-  }
-
-  Future<(int, int)> copyYTHistoryContentToLocalHistory({required bool matchAll}) async {
-    final allTracks = Indexer.inst.allTracksMappedByPath.values;
-    final allInsideYTHistory = YoutubeHistoryController.inst.historyTracks;
-    final tracksIdsMap = <String, List<Track>>{};
-
-    for (final trExt in allTracks) {
-      final videoId = trExt.youtubeID;
-      if (videoId.isNotEmpty) {
-        tracksIdsMap.addForce(videoId, trExt.asTrack());
-      }
-    }
-    int totalCount = 0;
-    int removedDuplicates = 0;
-    final historyMap = HistoryController.inst.historyMap.value;
-    final datesAdded = <int>[];
-    for (final vh in allInsideYTHistory) {
-      final match = tracksIdsMap[vh.id];
-      if (match != null && match.isNotEmpty) {
-        final tracks = matchAll ? match : [match.first];
-        final tracksWithDates = tracks
-            .map(
-              (e) => TrackWithDate(
-                dateAdded: vh.dateAddedMS,
-                track: e,
-                source: vh.watch.isYTMusic ? TrackSource.youtubeMusic : TrackSource.youtube,
-              ),
-            )
-            .toList();
-        final day = vh.dateAddedMS.toDaysSince1970();
-        final dayLengthBefore = historyMap[day]?.length ?? 0;
-        totalCount += tracksWithDates.length;
-        final days = HistoryController.inst.addTracksToHistoryOnly(tracksWithDates, preventDuplicate: true);
-        final dayLengthAfter = historyMap[day]?.length ?? 0;
-        final actuallyAddedCount = (dayLengthAfter - dayLengthBefore);
-        removedDuplicates += tracks.length - actuallyAddedCount;
-        datesAdded.addAll(days);
-      }
-    }
-    if (datesAdded.isNotEmpty) {
-      removedDuplicates += HistoryController.inst.removeDuplicatedItems(datesAdded);
-      HistoryController.inst.sortHistoryTracks(datesAdded);
-      await HistoryController.inst.saveHistoryToStorage(datesAdded);
-      HistoryController.inst.updateMostPlayedPlaylist();
-      return (totalCount, totalCount - removedDuplicates);
-    }
-    return (totalCount, 0);
-  }
-
-  /// Returns [daysToSave] to be used by [sortHistoryTracks] && [saveHistoryToStorage].
-  static Future<
-    ({
-      Map<String, YoutubeVideoHistory>? affectedIds,
-      List<int> daysToSaveLocal,
-      List<int> daysToSaveYT,
-      int addedLocalHistoryCount,
-      int addedYTHistoryCount,
-      SplayTreeMap<int, List<TrackWithDate>> localHistory,
-      SplayTreeMap<int, List<YoutubeID>> ytHistory,
-      Map<_MissingListenEntry, List<int>> missingEntries,
-    })?
-  >
-  _parseYTHistoryJsonAndAddIsolate(Map params) async {
-    final allTracks = params['tracks'] as List<Map>;
-    final files = params['files'] as List<File>;
-    final isMatchingTypeLink = params['isMatchingTypeLink'] as bool;
-    final isMatchingTypeTitleAndArtist = params['isMatchingTypeTitleAndArtist'] as bool;
-    final matchYT = params['matchYT'] as bool;
-    final matchYTMusic = params['matchYTMusic'] as bool;
-    final oldestDay = params['oldestDay'] as int?;
-    final newestDay = params['newestDay'] as int?;
-    final matchAll = params['matchAll'] as bool;
-    final artistsSplitConfig = ArtistsSplitConfig.fromMap(params['artistsSplitConfig']);
-
-    final localHistory = params['localHistory'] as SplayTreeMap<int, List<TrackWithDate>>;
-    final ytHistory = params['ytHistory'] as SplayTreeMap<int, List<YoutubeID>>;
-
-    int addedLocalHistoryCount = 0;
-    int addedYTHistoryCount = 0;
-
-    final portProgressParsed = params['portProgressParsed'] as SendPort;
-    final portProgressAdded = params['portProgressAdded'] as SendPort;
-    final portLoadingProgress = params['portLoadingProgress'] as SendPort;
-
-    Map<String, List<Track>>? tracksIdsMap;
-    if (isMatchingTypeLink) {
-      tracksIdsMap = <String, List<Track>>{};
-      for (var trMap in allTracks) {
-        String? videoId = NamidaLinkUtils.extractYoutubeId(trMap['comment'] as String? ?? '');
-        videoId ??= NamidaLinkUtils.extractYoutubeId(trMap['filename'] as String? ?? '');
-        if (videoId != null && videoId.isNotEmpty) {
-          tracksIdsMap.addForce(videoId, Track.decide(trMap['path'], trMap['v']));
-        }
-      }
-    }
-
-    final reverseTitleMatcher = ReverseSearchMatcher<Map>();
-    final reverseArtistMatcher = ReverseSearchMatcher<Map>();
-    final reverseAlbumMatcher = ReverseSearchMatcher<Map>();
-    if (isMatchingTypeTitleAndArtist) {
-      for (var trMap in allTracks) {
-        final title = trMap['title'] as String;
-        final album = trMap['album'] as String;
-        final originalArtist = trMap['artist'] as String;
-        final artistsList = Indexer.splitArtist(
-          title: title,
-          originalArtist: originalArtist,
-          config: artistsSplitConfig,
-        );
-        reverseTitleMatcher.addItemWithTokens(trMap, title);
-        reverseAlbumMatcher.addItemWithTokens(trMap, album);
-        if (artistsList.isNotEmpty) {
-          reverseArtistMatcher.addItemWithTokens(trMap, artistsList.first);
-        }
-      }
-    }
-
-    int jsonResponseTotal = 0;
-    for (final file in files) {
-      jsonResponseTotal += await JsonToHistoryParser._countJsonObjectsInList(file);
-    }
-    portLoadingProgress.send(jsonResponseTotal); // 1
-
-    final mapOfAffectedIds = <String, YoutubeVideoHistory>{};
-    final missingEntries = <_MissingListenEntry, List<int>>{};
-    int totalParsed = 0;
-    int totalAdded = 0;
-    final daysToSaveLocal = <int>[];
-    final daysToSaveYT = <int>[];
-    const chunkSize = 20;
-    for (final file in files) {
-      List? list = jsonDecode(file.readAsStringSync()) as List?;
-      if (list == null) continue;
-
-      for (final p in list) {
-        totalParsed++;
-        try {
-          final link = utf8.decode((p['titleUrl']).toString().codeUnits);
-          final id = link.length >= 11 ? link.substring(link.length - 11) : link;
-          final z = List<Map<String, dynamic>>.from((p['subtitles'] ?? []));
-
-          /// matching in real time, each object.
-          final yth = YoutubeVideoHistory(
-            id: id,
-            title: (p['title'] as String).replaceFirst('Watched ', ''),
-            channel: z.isNotEmpty ? z.first['name'] : '',
-            channelUrl: z.isNotEmpty ? utf8.decode((z.first['url']).toString().codeUnits) : '',
-            watches: [
-              YTWatch(
-                dateMSNull: YoutubeImportController.parseDate(p['time'] ?? '')?.millisecondsSinceEpoch,
-                isYTMusic: p['header'] == "YouTube Music",
-              ),
-            ],
-          );
-          // -- updating affected ids map, used to update youtube stats
-          if (mapOfAffectedIds[id] != null) {
-            mapOfAffectedIds[id] = YoutubeVideoHistory.merge(current: mapOfAffectedIds[id], newRes: yth);
-            mapOfAffectedIds[id]!.watches.addAllNoDuplicates(yth.watches.map((e) => YTWatch(dateMSNull: e.dateMSNull, isYTMusic: e.isYTMusic)));
-          } else {
-            mapOfAffectedIds[id] = yth;
-          }
-          // ---------------------------------------------------------
-          // -- local history --
-          final tracks = _matchYTVHToNamidaHistory(
-            vh: yth,
-            matchYT: matchYT,
-            matchYTMusic: matchYTMusic,
-            oldestDay: oldestDay,
-            newestDay: newestDay,
-            matchAll: matchAll,
-            tracksIdsMap: tracksIdsMap,
-            matchByTitleAndArtistIfNotFoundInMap: isMatchingTypeTitleAndArtist,
-            onMissingEntries: (entries) {
-              for (final e in entries) {
-                missingEntries.addForce(e, e.dateMSSE);
-              }
-            },
-            allTracks: allTracks,
-            artistsSplitConfig: artistsSplitConfig,
-            reverseTitleMatcher: reverseTitleMatcher,
-            reverseArtistMatcher: reverseArtistMatcher,
-            reverseAlbumMatcher: reverseAlbumMatcher,
-          );
-          totalAdded += tracks.length;
-          for (var item in tracks) {
-            final day = item.dateAdded.toDaysSince1970();
-            final tracks = localHistory[day] ??= [];
-            if (!tracks.contains(item)) {
-              daysToSaveLocal.add(day);
-              tracks.add(item);
-              addedLocalHistoryCount++;
-            }
-          }
-
-          // -- youtube history --
-          for (var w in yth.watches) {
-            final canAdd = _canSafelyAddToYTHistory(
-              watch: w,
-              matchYT: matchYT,
-              matchYTMusic: matchYTMusic,
-              newestDay: newestDay,
-              oldestDay: oldestDay,
-            );
-            if (canAdd) {
-              final ytid = YoutubeID(
-                id: yth.id,
-                source: w.isYTMusic ? TrackSource.youtubeMusic : TrackSource.youtube,
-                watchNull: w,
-                playlistID: null,
-              );
-              final day = ytid.dateAddedMS.toDaysSince1970();
-              final videos = ytHistory[day] ??= [];
-              if (!videos.contains(ytid)) {
-                daysToSaveYT.add(day);
-                videos.add(ytid);
-                addedYTHistoryCount++;
-              }
-            }
-          }
-
-          if (totalParsed >= chunkSize) {
-            portProgressParsed.send(totalParsed);
-            totalParsed = 0;
-          }
-          if (totalAdded >= chunkSize) {
-            portProgressAdded.send(totalAdded);
-            totalAdded = 0;
-          }
-        } catch (e) {
-          printo(e, isError: true);
-          continue;
-        }
-      }
-      list = null;
-    }
-    // jsonResponsesList.clear();
-
-    portProgressParsed.send(totalParsed);
-    portProgressAdded.send(totalAdded);
-
-    return (
-      affectedIds: mapOfAffectedIds,
-      daysToSaveLocal: daysToSaveLocal,
-      daysToSaveYT: daysToSaveYT,
-      addedLocalHistoryCount: addedLocalHistoryCount,
-      addedYTHistoryCount: addedYTHistoryCount,
-      localHistory: localHistory,
-      ytHistory: ytHistory,
-      missingEntries: missingEntries,
-    );
-  }
-
-  static bool _canSafelyAddToYTHistory({
-    required YTWatch watch,
-    int? oldestDay,
-    int? newestDay,
-    required bool matchYT,
-    required bool matchYTMusic,
-  }) {
-    // ---- sussy checks ----
-
-    // -- if the watch day is outside range specified
-    if (oldestDay != null && newestDay != null) {
-      final watchAsDSE = watch.dateMS.toDaysSince1970();
-      if (watchAsDSE < oldestDay || watchAsDSE > newestDay) return false;
-    }
-
-    // -- if the type is youtube music, but the user dont want ytm.
-    if (watch.isYTMusic && !matchYTMusic) return false;
-
-    // -- if the type is youtube, but the user dont want yt.
-    if (!watch.isYTMusic && !matchYT) return false;
-
-    return true;
-  }
-
-  static List<TrackWithDate> _matchYTVHToNamidaHistory({
-    required YoutubeVideoHistory vh,
-    required bool matchYT,
-    required bool matchYTMusic,
-    required int? oldestDay,
-    required int? newestDay,
-    required bool matchAll,
-    required Map<String, List<Track>>? tracksIdsMap,
-    required bool matchByTitleAndArtistIfNotFoundInMap,
-    required void Function(Iterable<_MissingListenEntry> missingEntries) onMissingEntries,
-    required ArtistsSplitConfig artistsSplitConfig,
-    required List<Map> allTracks,
-    required ReverseSearchMatcher<Map> reverseTitleMatcher,
-    required ReverseSearchMatcher<Map> reverseArtistMatcher,
-    required ReverseSearchMatcher<Map> reverseAlbumMatcher,
-  }) {
-    Iterable<Track> tracks = <Track>[];
-
-    if (tracksIdsMap != null) {
-      final match = tracksIdsMap[vh.id];
-      if (match != null && match.isNotEmpty) {
-        tracks = matchAll ? match : [match.first];
-      }
-    }
-
-    if (tracks.isEmpty && matchByTitleAndArtistIfNotFoundInMap) {
-      final titleCleaned = vh.title.cleanUpForComparison;
-      final channelCleaned = vh.channel.cleanUpForComparison;
-
-      final titleMatches = reverseTitleMatcher.matchContainedIn(titleCleaned);
-      if (titleMatches.isNotEmpty) {
-        /// matching has to meet 2 conditons:
-        /// 1. [json title] contains [track.title]
-        /// 2. - [json title] contains [track.artistsList.first]
-        ///     or
-        ///    - [json channel] contains [track.album]
-        ///    (useful for nightcore channels, album has to be the channel name)
-        ///     or
-        ///    - [json channel] contains [track.artistsList.first]
-        final artistInTitle = reverseArtistMatcher.matchContainedIn(titleCleaned);
-        final albumInChannel = reverseAlbumMatcher.matchContainedIn(channelCleaned);
-        final artistInChannel = reverseArtistMatcher.matchContainedIn(channelCleaned);
-
-        final secondCondition = artistInTitle.union(albumInChannel).union(artistInChannel);
-        final matched = secondCondition.isEmpty ? titleMatches : titleMatches.intersection(secondCondition);
-
-        final result = matchAll ? matched : (matched.isEmpty ? <Map>{} : {matched.first});
-        tracks = result.map((e) => Track.decide(e['path'] ?? '', e['v']));
-      }
-    }
-
-    final tracksToAdd = <TrackWithDate>[];
-    if (tracks.isNotEmpty) {
-      for (var d in vh.watches) {
-        final canAdd = _canSafelyAddToYTHistory(
-          watch: d,
-          matchYT: matchYT,
-          matchYTMusic: matchYTMusic,
-          newestDay: newestDay,
-          oldestDay: oldestDay,
-        );
-        if (canAdd) {
-          tracksToAdd.addAll(
-            tracks.map(
-              (tr) => TrackWithDate(
-                dateAdded: d.dateMS,
-                track: tr,
-                source: d.isYTMusic ? TrackSource.youtubeMusic : TrackSource.youtube,
-              ),
-            ),
-          );
-        }
-      }
-    } else {
-      onMissingEntries(
-        vh.watches.map(
-          (e) => _MissingListenEntry(
-            youtubeID: vh.id,
-            dateMSSE: e.dateMS,
-            source: e.isYTMusic ? TrackSource.youtubeMusic : TrackSource.youtube,
-            artistOrChannel: vh.channel,
-            title: vh.title,
-          ),
-        ),
-      );
-    }
-    return tracksToAdd;
-  }
-
-  /// Returns [daysToSave] to be used by [sortHistoryTracks] && [saveHistoryToStorage].
   Future<({List<int> historyDays, Map<_MissingListenEntry, List<int>> missingEntries})?> _addLastFmSource({
     required List<File> files,
     required bool matchAll,
@@ -1287,75 +749,6 @@ class JsonToHistoryParser {
     );
   }
 
-  Future<void> _updateYoutubeStatsDirectory({
-    required Map<String, YoutubeVideoHistory> affectedIds,
-    required void Function(int updatedIdsCount) onProgress,
-  }) async {
-    final progressPort = RawReceivePort((message) {
-      onProgress(message as int);
-    });
-    await _updateYoutubeStatsDirectoryIsolate.thready({
-      "affectedIds": affectedIds,
-      "dirPath": AppDirs.YT_STATS,
-      "progressPort": progressPort.sendPort,
-    });
-    progressPort.close();
-  }
-
-  static void _updateYoutubeStatsDirectoryIsolate(Map params) {
-    final affectedIds = params['affectedIds'] as Map<String, YoutubeVideoHistory>;
-    final progressPort = params['progressPort'] as SendPort;
-    final dirPath = params['dirPath'] as String;
-
-    // ===== Getting affected files (which are arranged by id[0])
-    final fileIdentifierMap = <String, Map<String, YoutubeVideoHistory>>{}; // {id[0]: {id: YoutubeVideoHistory}}
-    for (final entry in affectedIds.entries) {
-      final id = entry.key;
-      final video = entry.value;
-      final filename = id[0];
-      if (fileIdentifierMap[filename] == null) {
-        fileIdentifierMap[filename] = {id: video};
-      } else {
-        fileIdentifierMap[filename]!.addAll({id: video});
-      }
-    }
-    // ==================================================
-
-    // ===== looping each file and getting all videos inside
-    // then mapping all to a map for instant lookup
-    // then merging affected videos inside [fileIdentifierMap]
-    for (final entry in fileIdentifierMap.entries) {
-      final filename = entry.key; // id[0]
-      final videos = entry.value; // {id: YoutubeVideoHistory}
-
-      final file = FileParts.join(dirPath, '$filename.json');
-      final res = file.readAsJsonSync();
-      final videosInStorage = (res as List?)?.map((e) => YoutubeVideoHistory.fromJson(e)) ?? [];
-      final videosMapInStorage = <String, YoutubeVideoHistory>{};
-      for (final videoStor in videosInStorage) {
-        videosMapInStorage[videoStor.id] = videoStor;
-      }
-
-      // ===========
-      final updatedIds = <String>[];
-      for (final affectedv in videos.entries) {
-        final id = affectedv.key;
-        final video = affectedv.value;
-        if (videosMapInStorage[id] != null) {
-          // -- video exists inside the file, so we add only new watches
-          videosMapInStorage[id] = YoutubeVideoHistory.merge(current: videosMapInStorage[id], newRes: video);
-          videosMapInStorage[id]!.watches.addAllNoDuplicates(video.watches.map((e) => YTWatch(dateMSNull: e.dateMSNull, isYTMusic: e.isYTMusic)));
-        } else {
-          // -- video does NOT exist, so the whole video is added with all its watches.
-          videosMapInStorage[id] = video;
-        }
-        updatedIds.add(id);
-      }
-      file.writeAsJsonSync(videosMapInStorage.values.toFixedList());
-      progressPort.send(updatedIds.length);
-    }
-  }
-
   static Future<int> _countLinesInFile(File file) async {
     var count = 0;
     var prevByte = 0;
@@ -1436,14 +829,5 @@ class _MissingListenEntry {
   @override
   int get hashCode {
     return dateMSSE.hashCode ^ source.hashCode ^ youtubeID.hashCode ^ title.hashCode ^ artistOrChannel.hashCode;
-  }
-}
-
-extension _YTWatchListExt on List<YTWatch> {
-  void addAllNoDuplicates(Iterable<YTWatch> items) {
-    for (final item in items) {
-      final alrExists = this.contains(item);
-      if (!alrExists) this.add(item);
-    }
   }
 }

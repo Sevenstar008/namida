@@ -23,7 +23,6 @@ import 'package:namida/core/utils.dart';
 import 'package:namida/ui/widgets/animated_widgets.dart';
 import 'package:namida/ui/widgets/custom_widgets.dart';
 import 'package:namida/ui/widgets/settings/playback_settings.dart';
-import 'package:namida/youtube/class/youtube_id.dart';
 
 class SoundControlMainSlidersColumn extends StatefulWidget {
   final double verticalInBetweenPadding;
@@ -528,8 +527,8 @@ class _SoundControlMainSlidersColumnBaseState extends State<_SoundControlMainSli
               width: context.width,
               child: ConstrainedBox(
                 constraints: const BoxConstraints(minHeight: 38.0),
-                child: PlayableTitleSubtitleWidget(
-                  isYTID: currentItem is YoutubeID,
+                child:                 PlayableTitleSubtitleWidget(
+                  isYTID: false,
                   builder: (title, artist) => NamidaCoolBox(
                     extraVPadding: true,
                     colorScheme: theme.colorScheme.secondary,

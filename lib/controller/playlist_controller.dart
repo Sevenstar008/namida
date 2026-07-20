@@ -29,7 +29,6 @@ import 'package:namida/core/icon_fonts/broken_icons.dart';
 import 'package:namida/core/translations/language.dart';
 import 'package:namida/core/utils.dart';
 import 'package:namida/ui/widgets/custom_widgets.dart';
-import 'package:namida/youtube/class/download_task_base.dart';
 
 typedef LocalPlaylist = GeneralPlaylist<TrackWithDate, SortType>;
 
@@ -39,7 +38,7 @@ class PlaylistController extends PlaylistManager<TrackWithDate, Track, SortType>
   PlaylistController._internal();
 
   @override
-  RegExp get cleanupFilenameRegex => DownloadTaskFilename.cleanupFilenameRegex;
+  RegExp get cleanupFilenameRegex => RegExp(r'[\\/:*?"<>|]');
 
   @override
   Track identifyBy(TrackWithDate item) => item.track;

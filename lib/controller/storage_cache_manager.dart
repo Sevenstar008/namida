@@ -21,9 +21,6 @@ import 'package:namida/core/icon_fonts/broken_icons.dart';
 import 'package:namida/core/translations/language.dart';
 import 'package:namida/core/utils.dart';
 import 'package:namida/ui/widgets/custom_widgets.dart';
-import 'package:namida/youtube/controller/youtube_history_controller.dart';
-import 'package:namida/youtube/controller/youtube_info_controller.dart';
-import 'package:namida/youtube/widgets/yt_thumbnail.dart';
 
 enum _CacheSorting { recommended, size, listenCount, accessTime }
 
@@ -174,14 +171,12 @@ class StorageCacheManager {
     int getTotalListensForIDLength(String id) {
       final correspondingTracks = localIdTrackMap[id];
       int localCount = 0;
-      int ytCount = 0;
       if (correspondingTracks != null && correspondingTracks.isNotEmpty) {
         for (final t in correspondingTracks) {
           localCount += HistoryController.inst.topTracksMapListens.value[t]?.length ?? 0;
         }
       }
-      ytCount = YoutubeHistoryController.inst.topTracksMapListens.value[id]?.length ?? 0;
-      return localCount + ytCount;
+      return localCount;
     }
 
     final listensMap = <String?, int>{};
@@ -417,16 +412,9 @@ class StorageCacheManager {
                               },
                               child: Row(
                                 children: [
-                                  YoutubeThumbnail(
-                                    key: Key(id ?? ''),
-                                    type: ThumbnailType.video,
-                                    videoId: id,
-                                    borderRadius: 8.0,
-                                    iconSize: 24.0,
+                                  const SizedBox(
                                     width: 92.0,
                                     height: 92 * 9 / 16,
-                                    forceSquared: true,
-                                    isImportantInCache: false,
                                   ),
                                   const SizedBox(width: 8.0),
                                   Expanded(
@@ -619,10 +607,9 @@ class _VideoIdToTitleWidgetState extends State<_VideoIdToTitleWidget> {
   void initValues() async {
     final id = widget.id;
     if (id == null) return;
-    final newTitle = await YoutubeInfoController.utils.getVideoName(id);
     if (mounted) {
-      if (newTitle != _title) {
-        setState(() => _title = newTitle);
+      if (id != _title) {
+        setState(() => _title = id);
       }
     }
   }

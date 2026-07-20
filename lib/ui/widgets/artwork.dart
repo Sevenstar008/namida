@@ -24,7 +24,6 @@ import 'package:namida/core/utils.dart';
 import 'package:namida/packages/image_advanced.dart';
 import 'package:namida/ui/widgets/custom_widgets.dart';
 import 'package:namida/ui/widgets/network_artwork.dart';
-import 'package:namida/youtube/widgets/yt_thumbnail.dart';
 
 class ArtworkWidget extends StatefulWidget {
   /// path of image file.
@@ -150,15 +149,6 @@ class _ArtworkWidgetState extends State<ArtworkWidget> with LoadingItemsDelayMix
       if (_imagePath != wPath) refreshState(() => _imagePath = wPath);
       return;
     }
-    if (widget.track != null) {
-      final id = widget.track!.youtubeID;
-      final ytImg = await ThumbnailManager.inst.getYoutubeThumbnailFromCache(type: ThumbnailType.video, id: id, isTemp: false);
-      if (ytImg != null) {
-        refreshState(() => _imagePath = ytImg.path);
-        return;
-      }
-    }
-
     if (widget.extractInternally) {
       if (_imagePath != _imagePathInitialValue) refreshState(() => _imagePath = _imagePathInitialValue);
       await Future.delayed(Duration.zero, _extractArtwork);

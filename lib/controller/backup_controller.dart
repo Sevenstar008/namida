@@ -19,9 +19,6 @@ import 'package:namida/core/extensions.dart';
 import 'package:namida/core/translations/language.dart';
 import 'package:namida/core/utils.dart';
 import 'package:namida/main.dart';
-import 'package:namida/youtube/controller/youtube_history_controller.dart';
-import 'package:namida/youtube/controller/youtube_info_controller.dart';
-import 'package:namida/youtube/controller/youtube_playlist_controller.dart';
 
 class BackupController {
   static BackupController get inst => _instance;
@@ -118,23 +115,12 @@ class BackupController {
         AppPaths.SETTINGS_TUTORIAL,
         AppPaths.SETTINGS_SHORTCUTS,
         AppPaths.LATEST_QUEUE,
-        AppPaths.YT_LIKES_PLAYLIST,
-        AppPaths.YT_SUBSCRIPTIONS,
-        AppPaths.YT_SUBSCRIPTIONS_GROUPS_ALL,
-        AppPaths.VIDEO_ID_STATS_DB_INFO.file.path,
-        AppPaths.CACHE_VIDEOS_PRIORITY.file.path,
         AppDirs.PLAYLISTS,
         AppDirs.PLAYLISTS_ARTWORKS,
         AppDirs.SMART_PLAYLISTS_ARTWORKS,
         AppDirs.PLAYLISTS_METADATA,
         AppDirs.HISTORY_PLAYLIST,
         AppDirs.QUEUES,
-        AppDirs.YT_DOWNLOAD_TASKS,
-        AppDirs.YT_STATS,
-        AppDirs.YT_PLAYLISTS,
-        AppDirs.YT_PLAYLISTS_ARTWORKS,
-        AppDirs.YT_PLAYLISTS_METADATA,
-        AppDirs.YT_HISTORY_PLAYLIST,
       ];
       await createBackupFile(itemsToBackup, fileSuffix: " - auto");
       _trimExtraBackupFiles.thready(backupDirectoryPath);
@@ -166,21 +152,15 @@ class BackupController {
     // prepares files
 
     final List<File> localFilesOnly = [];
-    final List<File> youtubeFilesOnly = [];
     final List<File> compressedDirectories = [];
     final List<Directory> dirsOnly = [];
     File? tempAllLocal;
-    File? tempAllYoutube;
 
     for (final p in backupItemsPaths) {
       final type = await FileSystemEntity.type(p);
       if (type == FileSystemEntityType.file) {
         final file = File(p);
-        if (p.startsWith(AppDirs.YOUTUBE_MAIN_DIRECTORY)) {
-          youtubeFilesOnly.add(file);
-        } else {
-          localFilesOnly.add(file);
-        }
+        localFilesOnly.add(file);
 
         if (p.endsWith('.db')) {
           await _ensureDbCheckpointed(file);
@@ -193,8 +173,7 @@ class BackupController {
     try {
       for (final d in dirsOnly) {
         try {
-          final prefix = d.path.startsWith(AppDirs.YOUTUBE_MAIN_DIRECTORY) ? 'YOUTUBE_' : '';
-          final dirZipFile = FileParts.join(AppDirs.USER_DATA, "${prefix}TEMPDIR_${d.path.getFilename}.zip");
+          final dirZipFile = FileParts.join(AppDirs.USER_DATA, "TEMPDIR_${d.path.getFilename}.zip");
           await _zipManager.createZipFromDirectory(sourceDir: d, zipFile: dirZipFile);
           compressedDirectories.add(dirZipFile);
         } catch (e) {
@@ -207,14 +186,8 @@ class BackupController {
         await _zipManager.createZip(sourceDir: sourceDir, files: localFilesOnly, zipFile: tempAllLocal);
       }
 
-      if (youtubeFilesOnly.isNotEmpty) {
-        tempAllYoutube = await FileParts.join(AppDirs.USER_DATA, "YOUTUBE_FILES.zip").create();
-        await _zipManager.createZip(sourceDir: sourceDir, files: youtubeFilesOnly, zipFile: tempAllYoutube);
-      }
-
       final allFiles = [
         ?tempAllLocal,
-        ?tempAllYoutube,
         ...compressedDirectories,
       ];
       await _zipManager.createZip(sourceDir: sourceDir, files: allFiles, zipFile: backupFile);
@@ -227,7 +200,6 @@ class BackupController {
 
     // Cleaning up
     tempAllLocal?.tryDeleting();
-    tempAllYoutube?.tryDeleting();
     for (final d in compressedDirectories) {
       d.tryDeleting();
     }
@@ -390,22 +362,12 @@ class BackupController {
               destinationDir: Directory(AppDirs.USER_DATA),
             );
             await backupItem.tryDeleting();
-          } else if (filename == 'YOUTUBE_FILES.zip') {
-            await _zipManager.extractZip(
-              zipFile: backupItem,
-              destinationDir: Directory(AppDirs.USER_DATA), // since the zipped file has the directory 'AppDirs.YOUTUBE_MAIN_DIRECTORY/'
-            );
-            await backupItem.tryDeleting();
           } else {
             final isLocalTemp = filename.startsWith('TEMPDIR_');
-            final isYoutubeTemp = filename.startsWith('YOUTUBE_TEMPDIR_');
-            if (isLocalTemp || isYoutubeTemp) {
-              final dir = isYoutubeTemp ? AppDirs.YOUTUBE_MAIN_DIRECTORY : AppDirs.USER_DATA;
-              final prefixToReplace = isYoutubeTemp ? 'YOUTUBE_TEMPDIR_' : 'TEMPDIR_';
-
+            if (isLocalTemp) {
               await _zipManager.extractZip(
                 zipFile: backupItem,
-                destinationDir: Directory(FileParts.joinPath(dir, filename.replaceFirst(prefixToReplace, '').replaceFirst('.zip', ''))),
+                destinationDir: Directory(FileParts.joinPath(AppDirs.USER_DATA, filename.replaceFirst('TEMPDIR_', '').replaceFirst('.zip', ''))),
               );
               await backupItem.tryDeleting();
             }
@@ -415,9 +377,6 @@ class BackupController {
 
       await [
         _ensureDbCheckpointedAndDeleteWALFilesForDir(AppDirs.USER_DATA),
-        _ensureDbCheckpointedAndDeleteWALFilesForDir(AppDirs.YOUTUBE_MAIN_DIRECTORY),
-        _ensureDbCheckpointedAndDeleteWALFilesForDir(AppDirs.YOUTIPIE_CACHE),
-        _ensureDbCheckpointedAndDeleteWALFilesForDir(AppDirs.YT_DOWNLOAD_TASKS),
       ].executeAllAndSilentReportErrors();
 
       Indexer.inst.calculateAllImageSizesInStorage();
@@ -434,7 +393,6 @@ class BackupController {
   Future<void> _readNewFiles() async {
     settings.equalizer.prepareSettingsFile();
     settings.player.prepareSettingsFile();
-    settings.youtube.prepareSettingsFile();
     settings.prepareSettingsFile();
 
     Indexer.inst.prepareTracksFile();
@@ -447,10 +405,5 @@ class BackupController {
     HistoryController.inst.prepareHistoryFile().then((_) => Indexer.inst.sortMediaTracksAndSubListsAfterHistoryPrepared());
     await PlaylistController.inst.prepareDefaultPlaylistsFileAsync();
     // await QueueController.inst.prepareLatestQueueSync();
-
-    YoutubePlaylistController.inst.prepareAllPlaylists();
-    YoutubeHistoryController.inst.prepareHistoryFile();
-    await YoutubePlaylistController.inst.prepareDefaultPlaylistsFileAsync();
-    YoutubeInfoController.utils.fillBackupInfoMap(); // for history videos info.
   }
 }

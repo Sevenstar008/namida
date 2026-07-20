@@ -72,20 +72,6 @@ import 'package:namida/ui/widgets/circular_percentages.dart';
 import 'package:namida/ui/widgets/custom_widgets.dart';
 import 'package:namida/ui/widgets/network_artwork.dart';
 import 'package:namida/ui/widgets/settings_search_bar.dart';
-import 'package:namida/youtube/class/sponsorblock.dart';
-import 'package:namida/youtube/class/youtube_id.dart';
-import 'package:namida/youtube/controller/youtube_history_controller.dart';
-import 'package:namida/youtube/controller/youtube_info_controller.dart';
-import 'package:namida/youtube/controller/youtube_playlist_controller.dart' as ytplc;
-import 'package:namida/youtube/functions/add_to_playlist_sheet.dart';
-import 'package:namida/youtube/functions/download_sheet.dart';
-import 'package:namida/youtube/functions/video_listens_dialog.dart';
-import 'package:namida/youtube/pages/youtube_home_view.dart';
-import 'package:namida/youtube/pages/yt_channel_subpage.dart';
-import 'package:namida/youtube/pages/yt_playlist_download_subpage.dart';
-import 'package:namida/youtube/widgets/video_info_dialog.dart';
-import 'package:namida/youtube/widgets/yt_thumbnail.dart';
-import 'package:namida/youtube/yt_utils.dart';
 
 extension MediaTypeUtils on MediaType {
   LibraryTab toLibraryTab() {
@@ -117,7 +103,6 @@ extension LibraryTabUtils on LibraryTab {
       LibraryTab.foldersVideos => MediaType.folderVideo,
       LibraryTab.home => null,
       LibraryTab.search => null,
-      LibraryTab.youtube => null,
       LibraryTab.queues => null,
       LibraryTab.favourites => null,
       LibraryTab.history => null,
@@ -158,7 +143,6 @@ extension LibraryTabUtils on LibraryTab {
       LibraryTab.foldersMusic => FoldersPage.tracks(),
       LibraryTab.foldersVideos => FoldersPage.videos(),
       LibraryTab.home => HomePage.tracks(),
-      LibraryTab.youtube => const YouTubeHomeView(),
       LibraryTab.search => const NamidaDummyPage(),
       LibraryTab.queues => const QueuesPage(),
       LibraryTab.favourites => const NormalPlaylistTracksPage(
@@ -398,14 +382,6 @@ extension QueueNameGetter on Queue {
           QueueSourceEnum.queuePage => null, // has date as title
           _ => s.title,
         },
-        final QueueSourceYoutubeID s => switch (s.s) {
-          QueueSourceYoutubeIDEnum.ytPlaylist ||
-          QueueSourceYoutubeIDEnum.ytFavourites ||
-          QueueSourceYoutubeIDEnum.ytHistory ||
-          QueueSourceYoutubeIDEnum.ytHistoryFiltered ||
-          QueueSourceYoutubeIDEnum.ytMostPlayed => s.title?.translatePlaylistName(),
-          _ => s.title,
-        },
       };
 }
 
@@ -573,8 +549,6 @@ extension TrackExecuteActionsUtils on TrackExecuteActions {
     TrackExecuteActions.copyTitle => "${lang.copy} (${lang.title})",
     TrackExecuteActions.copyArtist => "${lang.copy} (${lang.artist})",
     TrackExecuteActions.copyArtistAndTitle => "${lang.copy} (${lang.artist} + ${lang.title})",
-    TrackExecuteActions.copyYTLink => "${lang.copy} (${lang.link})",
-    TrackExecuteActions.searchYTSimilar => lang.searchYoutube,
     TrackExecuteActions.delete => lang.delete,
   };
 
@@ -598,12 +572,10 @@ extension TrackExecuteActionsUtils on TrackExecuteActions {
       TrackExecuteActions.goToAlbum => Broken.music_dashboard,
       TrackExecuteActions.goToArtist => Broken.profile_2user,
       TrackExecuteActions.goToFolder => Broken.folder,
-      TrackExecuteActions.copyTitle => Broken.copy,
-      TrackExecuteActions.copyArtist => Broken.copy,
-      TrackExecuteActions.copyArtistAndTitle => Broken.copy,
-      TrackExecuteActions.copyYTLink => Broken.copy,
-      TrackExecuteActions.searchYTSimilar => Broken.search_normal_1,
-      TrackExecuteActions.delete => Broken.danger,
+    TrackExecuteActions.copyTitle => Broken.copy,
+    TrackExecuteActions.copyArtist => Broken.copy,
+    TrackExecuteActions.copyArtistAndTitle => Broken.copy,
+    TrackExecuteActions.delete => Broken.danger,
     };
   }
 
@@ -611,7 +583,6 @@ extension TrackExecuteActionsUtils on TrackExecuteActions {
     final queueSource =
         currentItem.execute(
               selectable: (_) => QueueSource.playerQueue,
-              youtubeID: (_) => QueueSourceYoutubeID.ytPlayerQueue,
             )
             as QueueSourceBase;
     this.execute(
@@ -638,9 +609,6 @@ extension TrackExecuteActionsUtils on TrackExecuteActions {
           selectable: (finalItem) {
             showAddToPlaylistDialog([finalItem.track]);
           },
-          youtubeID: (finalItem) {
-            showAddToPlaylistSheet(ids: [finalItem.id], idsNamesLookup: {finalItem.id: info.videoTitle});
-          },
         );
       case TrackExecuteActions.openinfo:
         item.execute(
@@ -649,13 +617,6 @@ extension TrackExecuteActionsUtils on TrackExecuteActions {
               finalItem.track,
               true,
               heroTag: info.heroTag,
-            );
-          },
-          youtubeID: (finalItem) {
-            NamidaNavigator.inst.navigateDialog(
-              dialog: VideoInfoDialog(
-                videoId: finalItem.id,
-              ),
             );
           },
         );
@@ -678,37 +639,12 @@ extension TrackExecuteActionsUtils on TrackExecuteActions {
             );
             details.openInFullscreen();
           },
-          youtubeID: (finalItem) {
-            final videoId = finalItem.id;
-            final details = NamidaArtworkExpandableToFullscreen(
-              artwork: const SizedBox(),
-              heroTag: null,
-              imageFile: () => ThumbnailManager.inst.getYoutubeThumbnailFromCache(
-                id: videoId,
-                type: ThumbnailType.video,
-                isTemp: null,
-              ),
-              fetchImage: () async => FArtwork(
-                file: await ThumbnailManager.inst.getYoutubeThumbnailAndCache(
-                  id: videoId,
-                  type: ThumbnailType.video,
-                ),
-              ),
-              onSave: (_, _) => YTUtils.copyThumbnailToStorage(videoId),
-              themeColor: null,
-            );
-            details.openInFullscreen();
-          },
         );
 
       case TrackExecuteActions.saveArtwork:
         item.execute(
           selectable: (finalItem) async {
             final savePath = await EditDeleteController.inst.saveTrackArtworkToStorage(finalItem.track);
-            NamidaOnTaps.inst.showSavedImageInSnack(savePath, null);
-          },
-          youtubeID: (finalItem) async {
-            final savePath = await YTUtils.copyThumbnailToStorage(finalItem.id);
             NamidaOnTaps.inst.showSavedImageInSnack(savePath, null);
           },
         );
@@ -719,7 +655,6 @@ extension TrackExecuteActionsUtils on TrackExecuteActions {
             if (tr == null) return;
             showEditTracksTagsDialog([tr], null);
           },
-          youtubeID: (finalItem) {},
         );
       case TrackExecuteActions.editArtwork:
         item.execute(
@@ -728,7 +663,6 @@ extension TrackExecuteActionsUtils on TrackExecuteActions {
             if (tr == null) return;
             showEditTracksTagsDialog([tr], null, instantEditArtwork: true);
           },
-          youtubeID: (finalItem) {},
         );
 
       case TrackExecuteActions.setRating:
@@ -740,7 +674,6 @@ extension TrackExecuteActionsUtils on TrackExecuteActions {
               stats: track.statsRaw,
             );
           },
-          youtubeID: (finalItem) {},
         );
 
       case TrackExecuteActions.setRatingAdv:
@@ -751,15 +684,11 @@ extension TrackExecuteActionsUtils on TrackExecuteActions {
               stats: TrackStats.buildEffective(finalItem.track),
             );
           },
-          youtubeID: (finalItem) {},
         );
       case TrackExecuteActions.openListens:
         item.execute(
           selectable: (finalItem) {
             showTrackListensDialog(finalItem.track);
-          },
-          youtubeID: (finalItem) {
-            showVideoListensDialog(finalItem.id);
           },
         );
 
@@ -768,7 +697,6 @@ extension TrackExecuteActionsUtils on TrackExecuteActions {
           selectable: (finalItem) {
             MainPageFABResumeButton.jumpToTrackInCurrentRoute(finalItem, fallbackToOpenTracksPage: true);
           },
-          youtubeID: (finalItem) {},
         );
 
       case TrackExecuteActions.goToTrack:
@@ -776,7 +704,6 @@ extension TrackExecuteActionsUtils on TrackExecuteActions {
           selectable: (finalItem) {
             MainPageFABResumeButton.jumpToTrackInTracksPage(finalItem);
           },
-          youtubeID: (finalItem) {},
         );
 
       case TrackExecuteActions.goToAlbum:
@@ -784,7 +711,6 @@ extension TrackExecuteActionsUtils on TrackExecuteActions {
           selectable: (finalItem) {
             NamidaOnTaps.inst.onAlbumTap(finalItem.track.albumsIdentifiersModified.firstOrNull);
           },
-          youtubeID: (finalItem) {},
         );
 
       case TrackExecuteActions.goToArtist:
@@ -793,12 +719,6 @@ extension TrackExecuteActionsUtils on TrackExecuteActions {
             final artist = finalItem.track.artistsList.firstOrNull;
             if (artist != null) {
               NamidaOnTaps.inst.onArtistTap(artist, MediaType.artist);
-            }
-          },
-          youtubeID: (finalItem) async {
-            final channelId = await YoutubeInfoController.utils.getVideoChannelID(finalItem.id);
-            if (channelId != null) {
-              YTChannelSubpage(channelID: channelId).navigate();
             }
           },
         );
@@ -810,7 +730,6 @@ extension TrackExecuteActionsUtils on TrackExecuteActions {
             final folder = track.folder;
             NamidaOnTaps.inst.onFolderTapNavigate(folder, null, trackToScrollTo: track);
           },
-          youtubeID: (finalItem) {},
         );
 
       case TrackExecuteActions.copyTitle:
@@ -819,24 +738,12 @@ extension TrackExecuteActionsUtils on TrackExecuteActions {
             final title = finalItem.track.title;
             info.copyToClipboard(title);
           },
-          youtubeID: (finalItem) async {
-            final title = await YoutubeInfoController.utils.getVideoName(finalItem.id);
-            if (title != null) {
-              info.copyToClipboard(title);
-            }
-          },
         );
       case TrackExecuteActions.copyArtist:
         item.execute(
           selectable: (finalItem) {
             final artist = finalItem.track.originalArtist;
             info.copyToClipboard(artist);
-          },
-          youtubeID: (finalItem) async {
-            final artist = await YoutubeInfoController.utils.getVideoChannelName(finalItem.id);
-            if (artist != null) {
-              info.copyToClipboard(artist);
-            }
           },
         );
       case TrackExecuteActions.copyArtistAndTitle:
@@ -846,64 +753,7 @@ extension TrackExecuteActionsUtils on TrackExecuteActions {
             final artist = finalItem.track.originalArtist;
             info.copyToClipboard("$artist - $title");
           },
-          youtubeID: (finalItem) async {
-            final title = await YoutubeInfoController.utils.getVideoName(finalItem.id);
-            final artist = await YoutubeInfoController.utils.getVideoChannelName(finalItem.id);
-            if (title?.isNotEmpty == true || artist?.isNotEmpty == true) {
-              info.copyToClipboard("${artist ?? ''} - ${title ?? ''}");
-            }
-          },
         );
-      case TrackExecuteActions.copyYTLink:
-        item.execute(
-          selectable: (finalItem) {
-            final link = finalItem.track.youtubeLink;
-            if (link.isNotEmpty) {
-              info.copyToClipboard(link);
-            } else {
-              snackyy(title: lang.error, message: lang.couldntOpenYtLink, top: false);
-            }
-          },
-          youtubeID: (finalItem) async {
-            final videoLink = YTUrlUtils.buildVideoUrl(finalItem.id);
-            info.copyToClipboard(videoLink);
-          },
-        );
-      case TrackExecuteActions.searchYTSimilar:
-        final text = await item.execute<FutureOr<String>>(
-          selectable: (finalItem) {
-            final title = finalItem.track.title;
-            final artist = finalItem.track.originalArtist;
-            return "$artist - $title";
-          },
-          youtubeID: (finalItem) async {
-            final title = await YoutubeInfoController.utils.getVideoName(finalItem.id);
-            final artist = await YoutubeInfoController.utils.getVideoChannelName(finalItem.id);
-            if (title?.isNotEmpty == true || artist?.isNotEmpty == true) {
-              return "${artist ?? ''} - ${title ?? ''}";
-            }
-            return '';
-          },
-        );
-        if (text != null && text.isNotEmpty) {
-          MiniPlayerController.inst.snapToMini();
-          MiniPlayerController.inst.ytMiniplayerKey.currentState?.animateToState(false); // -- useless really
-          // -- all these steps are important..
-          final searchController = ScrollSearchController.inst;
-          searchController.currentSearchType.value = SearchType.youtube;
-          searchController.searchTextEditingController.text = text;
-          searchController.latestSubmittedYTSearch.value = text;
-          SearchSortController.inst.lastSearchText = text;
-          searchController.showSearchMenu();
-          WidgetsBinding.instance.addPostFrameCallback(
-            (_) {
-              // post frame, since preferred tab can be localTracks so let the widget does what it wants and then jump
-              searchController.tabViewKey.currentState?.jumpToTab(SearchType.youtube.index);
-            },
-          );
-          searchController.searchBarKey.currentState?.openCloseSearchBar(forceOpen: true);
-          searchController.ytSearchKey.currentState?.fetchSearch(customText: text);
-        }
       case TrackExecuteActions.delete:
         item.execute(
           selectable: (finalItem) {
@@ -913,132 +763,9 @@ extension TrackExecuteActionsUtils on TrackExecuteActions {
               afterDone: NamidaNavigator.inst.closeDialog,
             );
           },
-          youtubeID: (finalItem) {},
         );
     }
     VibratorController.verylight();
-  }
-}
-
-extension OnYoutubeLinkOpenActionUtils on OnYoutubeLinkOpenAction {
-  Future<bool> execute(Iterable<String> ids, {ThemeData? theme}) async {
-    Iterable<YoutubeID> getPlayables() => ids.map((e) => YoutubeID(id: e, playlistID: null));
-    switch (this) {
-      case OnYoutubeLinkOpenAction.showDownload:
-        if (ids.length == 1) {
-          showDownloadVideoBottomSheet(videoId: ids.first, originalIndex: null, totalLength: null, playlistId: null, streamInfoItem: null);
-        } else {
-          final ptitle = 'External - ${DateTime.now().millisecondsSinceEpoch.dateAndClockFormattedOriginal}';
-          YTPlaylistDownloadPage(
-            ids: ids.map((e) => YoutubeID(id: e, playlistID: null)).toList(),
-            playlistName: ptitle,
-            infoLookup: const {},
-            playlistInfo: PlaylistBasicInfo(
-              id: '',
-              title: ptitle,
-              videosCountText: ids.length.toString(),
-              videosCount: ids.length,
-              thumbnails: [],
-            ),
-          ).navigate();
-        }
-        return true;
-      case OnYoutubeLinkOpenAction.addToPlaylist:
-        showAddToPlaylistSheet(ids: ids, idsNamesLookup: {});
-        return true;
-      case OnYoutubeLinkOpenAction.play:
-        await Player.inst.playOrPause(0, getPlayables(), QueueSourceYoutubeID.ytExternalLink, gentlePlay: true);
-        return true;
-      case OnYoutubeLinkOpenAction.playNext:
-        return Player.inst.addToQueue(getPlayables(), insertNext: true);
-      case OnYoutubeLinkOpenAction.playLast:
-        return Player.inst.addToQueue(getPlayables(), insertNext: false);
-      case OnYoutubeLinkOpenAction.playAfter:
-        return Player.inst.addToQueue(getPlayables(), insertAfterLatest: true);
-      case OnYoutubeLinkOpenAction.alwaysAsk:
-        final videoNamesSubtitle =
-            await ids
-                .take(3)
-                .mapAsync((id) async => await YoutubeInfoController.utils.getVideoName(id) ?? id) //
-                .join(', ') +
-            (ids.length > 3 ? '... + ${ids.length - 3}' : '');
-        _showAskDialog((action) => action.execute(ids), title: videoNamesSubtitle, theme: theme);
-        return true;
-    }
-  }
-
-  void _showAskDialog(void Function(OnYoutubeLinkOpenAction action) onTap, {String? title, ThemeData? theme}) async {
-    final isItemEnabled = <OnYoutubeLinkOpenAction, bool>{
-      OnYoutubeLinkOpenAction.playNext: true,
-      OnYoutubeLinkOpenAction.playAfter: true,
-      OnYoutubeLinkOpenAction.playLast: true,
-    }.obs;
-
-    final playAfterVid = await YTUtils.getPlayerAfterVideo();
-
-    NamidaNavigator.inst.navigateDialog(
-      onDisposing: () {
-        isItemEnabled.close();
-      },
-      theme: theme,
-      dialogBuilder: (theme) => CustomBlurryDialog(
-        theme: theme,
-        title: lang.choose,
-        titleWidgetInPadding: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              lang.choose,
-              style: theme.textTheme.displayLarge,
-            ),
-            if (title != null && title.isNotEmpty)
-              Text(
-                title,
-                style: theme.textTheme.displaySmall,
-              ),
-          ],
-        ),
-        normalTitleStyle: true,
-        actions: const [
-          DoneButton(),
-        ],
-        child: Column(
-          children: [
-            ...[
-              OnYoutubeLinkOpenAction.showDownload,
-              OnYoutubeLinkOpenAction.play,
-              OnYoutubeLinkOpenAction.playNext,
-              if (playAfterVid != null) OnYoutubeLinkOpenAction.playAfter,
-              OnYoutubeLinkOpenAction.playLast,
-              OnYoutubeLinkOpenAction.addToPlaylist,
-            ].map(
-              (e) {
-                final isPlayAfter = e == OnYoutubeLinkOpenAction.playAfter && playAfterVid != null;
-                final extraTitle = isPlayAfter ? ": ${playAfterVid.diff.displayVideoKeyword}" : "";
-                String? subtitle = isPlayAfter ? playAfterVid.name : null;
-                if (subtitle == '') subtitle = null;
-                return Obx(
-                  (context) => CustomListTile(
-                    passedColor: theme.colorScheme.primaryContainer,
-                    enabled: isItemEnabled[e] ?? true,
-                    icon: e.toIcon(),
-                    title: e.toText() + extraTitle,
-                    subtitle: subtitle,
-                    onTap: () {
-                      onTap(e);
-                      if (isItemEnabled[e] != null) {
-                        isItemEnabled[e] = false; // only disable existing item
-                      }
-                    },
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
 
@@ -1106,67 +833,6 @@ extension QueueInsertionTypeToQI on QueueInsertionType {
 
     return tracks;
   }
-
-  /// NOTE: Modifies the original list.
-  List<YoutubeID> shuffleOrSortYT(List<YoutubeID> videos) {
-    final sortBy = toQueueInsertion().sortBy;
-
-    switch (sortBy) {
-      case InsertionSortingType.listenCount:
-        if (this == QueueInsertionType.algorithm) {
-          // already sorted by repeated times inside [NamidaGenerator.generateRecommendedTrack].
-        } else {
-          videos.sortByReverse((e) => YoutubeHistoryController.inst.topTracksMapListens.value[e.id]?.length ?? 0);
-        }
-      case InsertionSortingType.random:
-        videos.shuffle();
-
-      case InsertionSortingType.rating: // no ratings yet
-      case InsertionSortingType.none: // do nothing
-    }
-
-    return videos;
-  }
-}
-
-extension SponsorBlockCategoryExt on SponsorBlockCategory {
-  String toText() => this.name.sponsorCategoryToText();
-}
-
-extension SponsorBlockCategoryNamesExt on String {
-  String sponsorCategoryToText() => switch (this) {
-    'sponsor' => lang.sponsor,
-    'selfpromo' => lang.selfPromotion,
-    'interaction' => lang.interactionReminder,
-    'poi_highlight' => lang.highlight,
-    'intro' => lang.intro,
-    'outro' => lang.outro,
-    'preview' => lang.preview,
-    'hook' => lang.hook,
-    'filler' => lang.filler,
-    'music_offtopic' => lang.musicOfftopic,
-    _ => '',
-  };
-}
-
-extension SponsorBlockActionExt on SponsorBlockAction {
-  String toText() => switch (this) {
-    SponsorBlockAction.showInSeekbar => lang.showInSeekbar,
-    SponsorBlockAction.showSkipButton => lang.showSkipButton,
-    SponsorBlockAction.autoSkip => lang.autoSkip,
-    SponsorBlockAction.autoSkipOnce => lang.autoSkipOnce,
-    SponsorBlockAction.disabled => lang.disable,
-  };
-
-  IconData toIcon() {
-    return switch (this) {
-      SponsorBlockAction.showInSeekbar => Broken.settings,
-      SponsorBlockAction.showSkipButton => Broken.next,
-      SponsorBlockAction.autoSkip => Broken.forward,
-      SponsorBlockAction.autoSkipOnce => Broken.forward,
-      SponsorBlockAction.disabled => Broken.slash,
-    };
-  }
 }
 
 extension RouteUtils on NamidaRoute {
@@ -1175,11 +841,6 @@ extension RouteUtils on NamidaRoute {
   List<Selectable> tracksListInside() {
     final iter = tracksInside();
     return iter is List ? iter as List<Selectable> : iter.toList();
-  }
-
-  List<YoutubeID> videosListInside() {
-    final iter = videosInside();
-    return iter is List ? iter as List<YoutubeID> : iter.toList();
   }
 
   bool hasTracksInside() => tracksInside().isNotEmpty;
@@ -1203,18 +864,6 @@ extension RouteUtils on NamidaRoute {
       RouteType.SUBPAGE_mostPlayedTracks => QueueSource.mostPlayed,
       RouteType.SUBPAGE_recentlyAddedTracks => QueueSource.recentlyAdded,
 
-      // -- YOUTUBE
-      RouteType.YOUTUBE_HOME => QueueSourceYoutubeID.ytHomeFeed,
-      RouteType.YOUTUBE_PLAYLIST_SUBPAGE => QueueSourceYoutubeID.ytPlaylist(name),
-      RouteType.YOUTUBE_PLAYLIST_DOWNLOAD_SUBPAGE => QueueSourceYoutubeID.ytDownloadTask,
-      RouteType.YOUTUBE_PLAYLIST_SUBPAGE_HOSTED => QueueSourceYoutubeID.ytPlaylistHosted,
-      RouteType.YOUTUBE_LIKED_SUBPAGE => QueueSourceYoutubeID.ytFavourites,
-      RouteType.YOUTUBE_HISTORY_SUBPAGE => QueueSourceYoutubeID.ytHistory,
-      RouteType.YOUTUBE_MOST_PLAYED_SUBPAGE => QueueSourceYoutubeID.ytMostPlayed,
-      RouteType.YOUTUBE_CHANNEL_SUBPAGE => QueueSourceYoutubeID.ytChannel(name),
-      RouteType.YOUTUBE_USER_CHANNELS_PAGE_HOSTED => QueueSourceYoutubeID.ytChannelHosted,
-      RouteType.YOUTUBE_HISTORY_HOSTED_SUBPAGE => QueueSourceYoutubeID.ytHistoryHosted,
-      // -----------
       _ => QueueSource.others(name),
     };
   }
@@ -1241,16 +890,6 @@ extension RouteUtils on NamidaRoute {
           RouteType.SUBPAGE_historyTracks => HistoryController.inst.historyTracks,
           // RouteType.SUBPAGE_mostPlayedTracks => HistoryController.inst.currentMostPlayedTracks,
           RouteType.SUBPAGE_recentlyAddedTracks => Indexer.inst.recentlyAddedTracksSorted(),
-          _ => null,
-        } ??
-        [];
-  }
-
-  /// NOTE: only few pages supported based on [QueueSourceYoutubeIDEnum.supportResuming]
-  Iterable<YoutubeID> videosInside() {
-    return switch (route) {
-          RouteType.YOUTUBE_PLAYLIST_SUBPAGE => name == null ? null : ytplc.YoutubePlaylistController.inst.getPlaylist(name!)?.tracks,
-          RouteType.YOUTUBE_LIKED_SUBPAGE => name == null ? null : ytplc.YoutubePlaylistController.inst.favouritesPlaylist.value.tracks,
           _ => null,
         } ??
         [];
@@ -1439,9 +1078,7 @@ extension RouteUtils on NamidaRoute {
     final shouldShowInitialActions =
         route != RouteType.PAGE_stats &&
         route != RouteType.SETTINGS_page &&
-        route != RouteType.SETTINGS_subpage &&
-        route != RouteType.YOUTUBE_USER_MANAGE_ACCOUNT_SUBPAGE &&
-        route != RouteType.YOUTUBE_USER_MANAGE_SUBSCRIPTION_SUBPAGE;
+        route != RouteType.SETTINGS_subpage;
     final shouldShowSettingsIcon = !showMainMenu && !showPlaylistMenu && shouldShowInitialActions;
 
     return <Widget>[
@@ -1504,22 +1141,6 @@ extension RouteUtils on NamidaRoute {
       ),
 
       _getAnimatedCrossFade(
-        child: NamidaAppBarIcon(
-          icon: Broken.sort,
-          onPressed: () {
-            NamidaOnTaps.inst.onPlaylistSubPageTracksSortIconTap(
-              name ?? '',
-              ytplc.YoutubePlaylistController.inst,
-              YTSortType.values,
-              (sort) => sort.toText(),
-              (sort) => sort.toIcon(),
-            );
-          },
-        ),
-        shouldShow: route == RouteType.YOUTUBE_PLAYLIST_SUBPAGE || route == RouteType.YOUTUBE_LIKED_SUBPAGE,
-      ),
-
-      _getAnimatedCrossFade(
         child: HistoryJumpToDayIcon(
           considerInfoBoxPadding: true,
           controller: HistoryController.inst,
@@ -1531,18 +1152,6 @@ extension RouteUtils on NamidaRoute {
         shouldShow: route == RouteType.SUBPAGE_historyTracks,
       ),
 
-      _getAnimatedCrossFade(
-        child: HistoryJumpToDayIcon(
-          considerInfoBoxPadding: false,
-          controller: YoutubeHistoryController.inst,
-          itemExtentAndDayHeaderExtent: () => (
-            itemExtent: Dimensions.youtubeCardItemExtent,
-            dayHeaderExtent: kYoutubeHistoryDayHeaderHeightWithPadding,
-          ),
-        ),
-        shouldShow: route == RouteType.YOUTUBE_HISTORY_SUBPAGE,
-      ),
-
       // ---- Playlist Tracks ----
       _getAnimatedCrossFade(
         child: EnableDisablePlaylistReordering(
@@ -1550,14 +1159,6 @@ extension RouteUtils on NamidaRoute {
           playlistManager: PlaylistController.inst,
         ),
         shouldShow: route == RouteType.SUBPAGE_playlistTracks || route == RouteType.SUBPAGE_favPlaylistTracks,
-      ),
-
-      _getAnimatedCrossFade(
-        child: EnableDisablePlaylistReordering(
-          playlistName: name ?? '',
-          playlistManager: ytplc.YoutubePlaylistController.inst,
-        ),
-        shouldShow: route == RouteType.YOUTUBE_PLAYLIST_SUBPAGE || route == RouteType.YOUTUBE_LIKED_SUBPAGE,
       ),
 
       _getAnimatedCrossFade(
@@ -1720,7 +1321,6 @@ extension LibraryTabL10n on LibraryTab {
     LibraryTab.foldersVideos => "${lang.folders}: ${lang.videos}",
     LibraryTab.home => lang.home,
     LibraryTab.search => lang.search,
-    LibraryTab.youtube => lang.youtube,
     LibraryTab.queues => lang.queues,
     LibraryTab.favourites => lang.favourites,
     LibraryTab.history => lang.history,
@@ -1741,7 +1341,6 @@ extension LibraryTabL10n on LibraryTab {
     LibraryTab.foldersVideos => Broken.video_play,
     LibraryTab.home => Broken.home_2,
     LibraryTab.search => Broken.search_normal_1,
-    LibraryTab.youtube => Broken.video_square,
     LibraryTab.queues => Broken.driver,
     LibraryTab.favourites => Broken.heart,
     LibraryTab.history => Broken.refresh,
@@ -1840,32 +1439,6 @@ extension SortTypeL10n on SortType {
     SortType.albumArtistSort => Broken.user,
     SortType.artistSort => Broken.microphone,
     SortType.composerSort => Broken.profile_2user,
-  };
-}
-
-extension YTSortTypeL10n on YTSortType {
-  String toText() => switch (this) {
-    YTSortType.title => lang.title,
-    YTSortType.channelTitle => lang.channel,
-    YTSortType.duration => lang.duration,
-    YTSortType.date => lang.date,
-    YTSortType.dateAdded => lang.dateAdded,
-    YTSortType.shuffle => lang.random,
-    YTSortType.mostPlayed => lang.mostPlayed,
-    YTSortType.latestPlayed => lang.recentListens,
-    YTSortType.firstListen => lang.firstListen,
-  };
-
-  IconData toIcon() => switch (this) {
-    YTSortType.title => Broken.music,
-    YTSortType.channelTitle => Broken.user,
-    YTSortType.duration => Broken.timer_1,
-    YTSortType.date => Broken.calendar,
-    YTSortType.dateAdded => Broken.calendar_add,
-    YTSortType.shuffle => Broken.shuffle,
-    YTSortType.mostPlayed => Broken.award,
-    YTSortType.latestPlayed => Broken.clock,
-    YTSortType.firstListen => Broken.calendar_search,
   };
 }
 
@@ -2044,31 +1617,6 @@ extension QueueSourceL10n on QueueSourceEnum {
   };
 }
 
-extension QueueSourceYoutubeIDL10n on QueueSourceYoutubeIDEnum {
-  String toText() => switch (this) {
-    QueueSourceYoutubeIDEnum.ytChannel => lang.channel,
-    QueueSourceYoutubeIDEnum.ytPlaylist => lang.playlist,
-    QueueSourceYoutubeIDEnum.ytSearch => lang.search,
-    QueueSourceYoutubeIDEnum.ytPlayerQueue => lang.queue,
-    QueueSourceYoutubeIDEnum.ytMostPlayed => lang.mostPlayed,
-    QueueSourceYoutubeIDEnum.ytHistory => lang.history,
-    QueueSourceYoutubeIDEnum.ytHistoryFiltered => lang.history,
-    QueueSourceYoutubeIDEnum.ytFavourites => lang.favourites,
-    QueueSourceYoutubeIDEnum.ytExternalLink => lang.externalFiles,
-    QueueSourceYoutubeIDEnum.ytHomeFeed => lang.home,
-    QueueSourceYoutubeIDEnum.ytRelatedVideos => lang.relatedVideos,
-    QueueSourceYoutubeIDEnum.ytHistoryFilteredHosted => lang.history,
-    QueueSourceYoutubeIDEnum.ytSearchHosted => lang.search,
-    QueueSourceYoutubeIDEnum.ytChannelHosted => lang.channel,
-    QueueSourceYoutubeIDEnum.ytHistoryHosted => lang.history,
-    QueueSourceYoutubeIDEnum.ytPlaylistHosted => lang.playlist,
-    QueueSourceYoutubeIDEnum.ytDownloadTask => lang.downloads,
-    QueueSourceYoutubeIDEnum.ytVideoEndCard => lang.video,
-    QueueSourceYoutubeIDEnum.ytVideoDescription => lang.description,
-    QueueSourceYoutubeIDEnum.ytNotificationsHosted => lang.notifications,
-  };
-}
-
 extension TagFieldL10n on TagField {
   String toText() => switch (this) {
     TagField.title => lang.title,
@@ -2136,13 +1684,11 @@ extension TagFieldL10n on TagField {
 extension VideoPlaybackSourceL10n on VideoPlaybackSource {
   String toText() => switch (this) {
     VideoPlaybackSource.auto => lang.auto,
-    VideoPlaybackSource.youtube => lang.videoPlaybackSourceYoutube,
     VideoPlaybackSource.local => lang.videoPlaybackSourceLocal,
   };
 
   String toSubtitle() => switch (this) {
     VideoPlaybackSource.auto => lang.videoPlaybackSourceAutoSubtitle,
-    VideoPlaybackSource.youtube => lang.videoPlaybackSourceYoutubeSubtitle,
     VideoPlaybackSource.local => lang.videoPlaybackSourceLocalSubtitle,
   };
 }
@@ -2269,28 +1815,6 @@ extension NotificationTapActionL10n on NotificationTapAction {
   };
 }
 
-extension OnYoutubeLinkOpenActionL10n on OnYoutubeLinkOpenAction {
-  String toText() => switch (this) {
-    OnYoutubeLinkOpenAction.showDownload => lang.download,
-    OnYoutubeLinkOpenAction.play => lang.play,
-    OnYoutubeLinkOpenAction.playNext => lang.playNext,
-    OnYoutubeLinkOpenAction.playAfter => lang.playAfter,
-    OnYoutubeLinkOpenAction.playLast => lang.playLast,
-    OnYoutubeLinkOpenAction.addToPlaylist => lang.addToPlaylist,
-    OnYoutubeLinkOpenAction.alwaysAsk => lang.alwaysAsk,
-  };
-
-  IconData toIcon() => switch (this) {
-    OnYoutubeLinkOpenAction.showDownload => Broken.import,
-    OnYoutubeLinkOpenAction.play => Broken.play,
-    OnYoutubeLinkOpenAction.playNext => Broken.next,
-    OnYoutubeLinkOpenAction.playAfter => Broken.hierarchy_square,
-    OnYoutubeLinkOpenAction.playLast => Broken.play_cricle,
-    OnYoutubeLinkOpenAction.addToPlaylist => Broken.music_library_2,
-    OnYoutubeLinkOpenAction.alwaysAsk => Broken.message_question,
-  };
-}
-
 extension PerformanceModeL10n on PerformanceMode {
   String toText() => switch (this) {
     PerformanceMode.highPerformance => lang.highPerformance,
@@ -2328,26 +1852,6 @@ extension FABTypeL10n on FABType {
     FABType.search => Broken.search_normal,
     FABType.shuffle => Broken.shuffle,
     FABType.play => Broken.play_cricle,
-  };
-}
-
-extension YTHomePagesL10n on YTHomePages {
-  String toText() => switch (this) {
-    YTHomePages.home => lang.home,
-    YTHomePages.notifications => lang.notifications,
-    YTHomePages.channels => lang.channels,
-    YTHomePages.playlists => lang.playlists,
-    // YTHomePages.userplaylists: '${lang.playlists} (${lang.youtube})',
-    YTHomePages.downloads => lang.downloads,
-  };
-
-  IconData toIcon() => switch (this) {
-    YTHomePages.home => Broken.home_1,
-    YTHomePages.notifications => Broken.notification_bing,
-    YTHomePages.channels => Broken.profile_2user,
-    YTHomePages.playlists => Broken.music_library_2,
-    // YTHomePages.userplaylists: Broken.music_dashboard,
-    YTHomePages.downloads => Broken.import,
   };
 }
 
@@ -2423,15 +1927,6 @@ extension PlaylistAddDuplicateActionL10n on PlaylistAddDuplicateAction {
   };
 }
 
-extension YTSeekActionModeL10n on YTSeekActionMode {
-  String toText() => switch (this) {
-    YTSeekActionMode.none => lang.none,
-    YTSeekActionMode.minimizedMiniplayer => lang.minimizedMiniplayer,
-    YTSeekActionMode.expandedMiniplayer => lang.expandedMiniplayer,
-    YTSeekActionMode.all => lang.all,
-  };
-}
-
 extension CommentsSortTypeL10n on CommentsSortType {
   String toText() => switch (this) {
     CommentsSortType.top => lang.top,
@@ -2444,23 +1939,6 @@ extension ChannelNotificationsL10n on ChannelNotifications {
     ChannelNotifications.all => lang.all,
     ChannelNotifications.personalized => lang.personalized,
     ChannelNotifications.none => lang.none,
-  };
-}
-
-extension YTVisibleShortPlacesL10n on YTVisibleShortPlaces {
-  String toText() => switch (this) {
-    YTVisibleShortPlaces.homeFeed => lang.home,
-    YTVisibleShortPlaces.relatedVideos => lang.relatedVideos,
-    YTVisibleShortPlaces.history => lang.history,
-    YTVisibleShortPlaces.search => lang.search,
-  };
-}
-
-extension YTVisibleMixesPlacesL10n on YTVisibleMixesPlaces {
-  String toText() => switch (this) {
-    YTVisibleMixesPlaces.homeFeed => lang.home,
-    YTVisibleMixesPlaces.relatedVideos => lang.relatedVideos,
-    YTVisibleMixesPlaces.search => lang.search,
   };
 }
 

@@ -25,9 +25,6 @@ import 'package:namida/core/extensions.dart';
 import 'package:namida/core/functions.dart';
 import 'package:namida/core/utils.dart';
 import 'package:namida/ui/widgets/video_widget.dart';
-import 'package:namida/youtube/controller/youtube_controller.dart';
-import 'package:namida/youtube/controller/youtube_info_controller.dart';
-import 'package:namida/youtube/widgets/yt_thumbnail.dart';
 
 part 'video_controller.priority.dart';
 
@@ -144,9 +141,8 @@ class VideoController {
     if (ytmini == null) return;
     final isExpanded = animationValue >= 0.95;
     if (isExpanded) {
-      // YoutubeMiniplayerUiController.inst.startDimTimer(); // bad experience honestly
+      // no-op
     } else {
-      // YoutubeMiniplayerUiController.inst.cancelDimTimer();
       ytmini.setControlsVisibily(false);
     }
   }
@@ -346,9 +342,6 @@ class VideoController {
       case VideoPlaybackSource.local:
         possibleVideos.retainWhere((element) => element.ytID == null); // leave all videos that doesnt have youtube id, i.e: local
         break;
-      case VideoPlaybackSource.youtube:
-        possibleVideos.retainWhere((element) => element.ytID != null); // leave all videos having youtube id
-        break;
       default:
         null; // VideoPlaybackSource.auto
     }
@@ -440,7 +433,6 @@ class VideoController {
     if (currentValue) {
       // should close/hide
       currentVideo.value = null;
-      YoutubeController.inst.dispose();
       await Player.inst.disposeVideo();
     } else {
       await updateCurrentVideo(Player.inst.currentTrack?.track);
@@ -463,11 +455,8 @@ class VideoController {
   Future<void> fetchYTQualitiesForCurrent(Track track) async {
     if (currentVideoConfig.isLoadingCurrentYTStreams.value) return; // if different track, the value would be reset already
     currentVideoConfig.isLoadingCurrentYTStreams.value = true;
-    final streamsResult = await YoutubeInfoController.video.fetchVideoStreams(track.youtubeID, forceRequest: false);
-    if (_canExecuteForCurrentTrackOnly(track)) {
-      currentVideoConfig.currentYTStreams.value = streamsResult;
-      currentVideoConfig.isLoadingCurrentYTStreams.value = false;
-    }
+    currentVideoConfig.currentYTStreams.value = null;
+    currentVideoConfig.isLoadingCurrentYTStreams.value = false;
   }
 
   Future<NamidaVideo?> getVideoFromYoutubeAndUpdate(
@@ -475,24 +464,7 @@ class VideoController {
     VideoStreamsResult? mainStreams,
     VideoStream? stream,
   }) async {
-    final tr = Player.inst.currentTrack?.track;
-    if (tr == null) return null;
-    final dv = await fetchVideoFromYoutube(id, stream: stream, mainStreams: mainStreams, canContinue: () => settings.enableVideoPlayback.value);
-    if (!settings.enableVideoPlayback.value) return null;
-    if (_canExecuteForCurrentTrackOnly(tr)) {
-      currentVideo.value = dv;
-      currentVideoConfig.currentYTStreams.refresh();
-      if (dv != null) currentVideoConfig.currentPossibleLocalVideos.addNoDuplicates(dv);
-      currentVideoConfig.currentPossibleLocalVideos.sortByReverseAlt(
-        (e) {
-          if (e.resolution != 0) return e.resolution;
-          if (e.height != 0) return e.height;
-          return 0;
-        },
-        (e) => e.frameratePrecise,
-      );
-    }
-    return dv;
+    return null;
   }
 
   Future<NamidaVideo?> fetchVideoFromYoutube(
@@ -501,84 +473,7 @@ class VideoController {
     VideoStream? stream,
     required bool Function() canContinue,
   }) async {
-    _downloadTimerCancel();
-    if (id == null || id == '') return null;
-    currentVideoConfig.currentDownloadedBytes.value = null;
-
-    final initialTrack = Player.inst.currentTrack?.track;
-
-    int downloaded = 0;
-    void updateCurrentBytes() {
-      if (!_canExecuteForCurrentTrackOnly(initialTrack)) return;
-
-      if (downloaded > 0) currentVideoConfig.currentDownloadedBytes.value = downloaded;
-      printy('Video Download: ${currentVideoConfig.currentDownloadedBytes.value?.fileSizeFormatted}');
-    }
-
-    _downloadTimer = Timer.periodic(const Duration(seconds: 1), (_) => updateCurrentBytes());
-
-    VideoStream? streamToUse = stream;
-    if (stream == null || (mainStreams?.hasExpired() ?? true)) {
-      // expired null or true
-      mainStreams = await YoutubeInfoController.video.fetchVideoStreams(id);
-      if (mainStreams != null) {
-        final newStreamToUse = mainStreams.videoStreams.firstWhereEff((e) => e.itag == stream?.itag) ?? YoutubeController.getPreferredStreamQuality(mainStreams.videoStreams);
-        streamToUse = newStreamToUse;
-      }
-    }
-
-    if (streamToUse == null || !canContinue()) {
-      if (_canExecuteForCurrentTrackOnly(initialTrack)) {
-        currentVideoConfig.currentDownloadedBytes.value = null;
-        _downloadTimerCancel();
-      }
-      return null;
-    }
-
-    final downloadedVideo = await YoutubeController.inst.downloadYoutubeVideo(
-      canStartDownloading: () => settings.enableVideoPlayback.value,
-      id: id,
-      stream: streamToUse,
-      creationDate: mainStreams?.info?.uploadDate.date ?? mainStreams?.info?.publishDate.date,
-      onAvailableQualities: (availableStreams) {},
-      onChoosingQuality: (choosenStream) {
-        if (_canExecuteForCurrentTrackOnly(initialTrack)) {
-          currentVideo.value = NamidaVideo(
-            path: '',
-            ytID: id,
-            height: choosenStream.height,
-            width: choosenStream.width,
-            sizeInBytes: choosenStream.sizeInBytes,
-            frameratePrecise: choosenStream.fps.toDouble(),
-            creationTimeMS: 0,
-            durationMS: choosenStream.duration?.inMilliseconds ?? 0,
-            bitrate: choosenStream.bitrate,
-          );
-        }
-      },
-      onInitialFileSize: (initialFileSize) {
-        downloaded = initialFileSize;
-        updateCurrentBytes();
-      },
-      downloadingStream: (downloadedBytesLength) {
-        downloaded += downloadedBytesLength;
-      },
-    );
-
-    updateCurrentBytes();
-
-    if (downloadedVideo != null) {
-      final ytId = downloadedVideo.ytID;
-      if (ytId != null && ytId.isNotEmpty) {
-        _videoCacheIDMap.addNoDuplicatesForce(ytId, downloadedVideo);
-        _saveCachedVideos(ytId);
-      }
-    }
-    if (_canExecuteForCurrentTrackOnly(initialTrack)) {
-      currentVideoConfig.currentDownloadedBytes.value = null;
-      _downloadTimerCancel();
-    }
-    return downloadedVideo;
+    return null;
   }
 
   List<String> _getPossibleVideosPathsFromAudioFile(String path) {

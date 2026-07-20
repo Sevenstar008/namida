@@ -9,10 +9,6 @@ import 'package:audio_service/audio_service.dart';
 import 'package:basic_audio_handler/basic_audio_handler.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:namico_db_wrapper/namico_db_wrapper.dart';
-import 'package:youtipie/class/streams/audio_stream.dart';
-import 'package:youtipie/class/streams/video_stream.dart';
-import 'package:youtipie/class/streams/video_streams_result.dart';
-
 import 'package:namida/base/audio_handler.dart';
 import 'package:namida/class/audio_cache_detail.dart';
 import 'package:namida/class/track.dart';
@@ -34,10 +30,6 @@ import 'package:namida/core/icon_fonts/broken_icons.dart';
 import 'package:namida/core/namida_converter_ext.dart';
 import 'package:namida/core/translations/language.dart';
 import 'package:namida/core/utils.dart';
-import 'package:namida/youtube/class/youtube_id.dart';
-import 'package:namida/youtube/controller/youtube_controller.dart';
-import 'package:namida/youtube/controller/youtube_info_controller.dart';
-import 'package:namida/youtube/yt_utils.dart';
 
 class Player {
   static final inst = Player._();
@@ -57,16 +49,6 @@ class Player {
   Selectable? get currentTrackR {
     final item = _audioHandler.currentItem.valueR;
     return item is Selectable ? item : null;
-  }
-
-  YoutubeID? get currentVideo {
-    final item = _audioHandler.currentItem.value;
-    return item is YoutubeID ? item : null;
-  }
-
-  YoutubeID? get currentVideoR {
-    final item = _audioHandler.currentItem.valueR;
-    return item is YoutubeID ? item : null;
   }
 
   RxBaseCore<List<Playable>> get currentQueue => _audioHandler.currentQueue.queueRx;
@@ -93,9 +75,7 @@ class Player {
       playerDuration =
           currentAudioStream.valueR?.duration ??
           currentVideoStream.valueR?.duration ??
-          (currentVideo == null
-              ? VideoController.inst.currentVideo.valueR?.durationMS.milliseconds
-              : YoutubeInfoController.current.currentYTStreams.valueR?.videoStreams.firstOrNull?.duration) ??
+          VideoController.inst.currentVideo.valueR?.durationMS.milliseconds ??
           Duration.zero;
     }
     return playerDuration;
@@ -107,14 +87,7 @@ class Player {
       playerDuration =
           currentAudioStream.value?.duration ??
           currentVideoStream.value?.duration ??
-          (currentVideo == null
-              ? VideoController
-                    .inst
-                    .currentVideo
-                    .value
-                    ?.durationMS
-                    .milliseconds //
-              : YoutubeInfoController.current.currentYTStreams.valueR?.videoStreams.firstOrNull?.duration) ??
+          VideoController.inst.currentVideo.value?.durationMS.milliseconds ??
           Duration.zero;
     }
     return playerDuration;
@@ -198,9 +171,7 @@ class Player {
     _audioHandler.videoPlayerInfo.addListener(videoInfoListener);
     _audioHandler.onVideoError = (e, _) {
       if (e is PlatformException) {
-        final itemId = currentVideo?.id ?? currentTrack?.track.youtubeID;
-        final button = itemId != null ? SnackbarButton(text: lang.clearVideoCache, function: () => const YTUtils().showVideoClearDialog(itemId)) : null;
-        snackyy(message: e.details.toString().substring(0, 600), title: '${lang.error}: ${e.message}', isError: true, top: false, button: button, maxLinesMessage: 8);
+        snackyy(message: e.details.toString().substring(0, 600), title: '${lang.error}: ${e.message}', isError: true, top: false, maxLinesMessage: 8);
       }
     };
 
@@ -219,10 +190,6 @@ class Player {
                 try {
                   MiniPlayerController.inst.snapToExpanded();
                 } catch (_) {}
-                try {
-                  final ytMiniplayer = MiniPlayerController.inst.ytMiniplayerKey.currentState;
-                  if (ytMiniplayer != null && ytMiniplayer.isExpanded == false) ytMiniplayer.animateToState(true);
-                } catch (_) {}
               },
             );
             break;
@@ -232,16 +199,6 @@ class Player {
                 try {
                   MiniPlayerController.inst.snapToQueue();
                 } catch (_) {}
-                try {
-                  final ytMiniplayer = MiniPlayerController.inst.ytMiniplayerKey.currentState;
-                  if (ytMiniplayer != null && ytMiniplayer.isExpanded == false) ytMiniplayer.animateToState(true);
-                } catch (_) {}
-                Future.delayed(const Duration(milliseconds: 100), () {
-                  try {
-                    final ytQueue = NamidaNavigator.inst.ytQueueSheetKey.currentState;
-                    if (ytQueue != null && ytQueue.isOpened == false) ytQueue.openSheet();
-                  } catch (_) {}
-                });
               },
             );
 
@@ -453,31 +410,6 @@ class Player {
               snackyy(
                 icon: shouldInsertNext ? Broken.redo : Broken.add_circle,
                 message: '${addins.capitalizeFirst()}: ${finalTracks.displayTrackKeyword}',
-                top: false,
-                displayDuration: SnackDisplayDuration.mediumLow,
-                animationDurationMS: 400,
-              );
-            }
-            return true;
-          },
-          youtubeID: (_) async {
-            final tracksCopy = List<YoutubeID>.from(tracks);
-            final finalVideos = (insertionType?.shuffleOrSortYT(tracksCopy) ?? tracksCopy).withLimit(maxCount);
-
-            if (showSnackBar && finalVideos.isEmpty) {
-              snackyy(title: lang.note, message: emptyTracksMessage ?? lang.noTracksFound, top: false);
-              return false;
-            }
-            await _audioHandler.addToQueue(
-              finalVideos,
-              insertNext: shouldInsertNext,
-              insertAfterLatest: insertAfterLatest,
-            );
-            if (showSnackBar) {
-              final addins = shouldInsertNext ? lang.inserted : lang.added;
-              snackyy(
-                icon: shouldInsertNext ? Broken.redo : Broken.add_circle,
-                message: '${addins.capitalizeFirst()}: ${finalVideos.length.displayVideoKeyword}',
                 top: false,
                 displayDuration: SnackDisplayDuration.mediumLow,
                 animationDurationMS: 400,
@@ -745,28 +677,20 @@ class Player {
       queue = queue.map(
         (queueItem) =>
             queueItem.execute(
-                  selectable: (e) => e is TrackWithDate
-                      ? TrackWithDate(
-                          dateAdded: e.dateAdded,
-                          track: e.track,
-                          queueSource: source,
-                          source: e.sourceNull,
-                        )
-                      : TrackWithDate(
-                          dateAdded: 0, // 0 to allow correct comparison with old queue
-                          track: e.track,
-                          queueSource: source,
-                          source: null,
-                        ),
-                  youtubeID: (e) => YoutubeID(
-                    id: e.id,
-                    playlistID: e.playlistID,
-                    queueSource: source,
-                    source: e.sourceNull,
-                    watchNull: e.watchNull,
-                  ),
-                )
-                as Playable,
+              selectable: (e) => e is TrackWithDate
+                  ? TrackWithDate(
+                      dateAdded: e.dateAdded,
+                      track: e.track,
+                      queueSource: source,
+                      source: e.sourceNull,
+                    )
+                  : TrackWithDate(
+                      dateAdded: 0, // 0 to allow correct comparison with old queue
+                      track: e.track,
+                      queueSource: source,
+                      source: null,
+                    ),
+            ) as Playable,
       );
     }
     _audioHandler.latestQueueSource = source;
@@ -788,36 +712,29 @@ class Player {
       startPlaying: startPlaying,
       shuffle: shuffle,
       onAssigningCurrentItem: onAssigningCurrentItem,
-      duplicateRemover: source == QueueSource.history || source == QueueSourceYoutubeID.ytHistory
+      duplicateRemover: source == QueueSource.history
           ? (item) {
               return item.execute(
                 selectable: (finalItem) => finalItem.track.path,
-                youtubeID: (finalItem) => finalItem.id,
               );
             }
           : null,
     );
   }
 
-  Future<void> tryAddingMixPlaylist() async {
-    final currentId = currentVideo?.id;
-    if (currentId != null) {
-      return await _audioHandler.tryAddingMixPlaylist(currentId);
-    }
-  }
+  Future<void> tryAddingMixPlaylist() async {}
 
   Future<void> setAudioTrackAndSave(String? trackId) async {
     currentItem.value?.execute(
       selectable: (finalItem) => Indexer.inst.updateTrackAudioTrackId(finalItem.track, audioTrackId: trackId),
-      youtubeID: (finalItem) => YoutubeController.inst.statsManager.updateAudioTrackId(finalItem, audioTrackId: trackId),
     );
     await _audioHandler.setAudioTrack(trackId);
   }
 
   // ------- video -------
 
-  Future<void> tryGenerateWaveform(YoutubeID? video) async {
-    return _audioHandler.tryGenerateWaveform(video);
+  Future<void> tryGenerateWaveform() async {
+    return _audioHandler.tryGenerateWaveform(null);
   }
 
   Future<void> setVideo({required AudioVideoSource source, bool loopingAnimation = false, required bool isFile, bool videoOnly = false}) async {

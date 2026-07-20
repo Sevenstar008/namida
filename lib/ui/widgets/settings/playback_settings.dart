@@ -23,8 +23,6 @@ import 'package:namida/core/utils.dart';
 import 'package:namida/ui/widgets/circular_percentages.dart';
 import 'package:namida/ui/widgets/custom_widgets.dart';
 import 'package:namida/ui/widgets/settings_card.dart';
-import 'package:namida/youtube/class/youtube_id.dart';
-import 'package:namida/youtube/controller/youtube_info_controller.dart';
 
 enum _PlaybackSettingsKeys with SettingKeysBase {
   enableVideoPlayback,
@@ -133,16 +131,6 @@ class PlaybackSettings extends SettingSubpageProvider {
                         if (gainToUse != null) Player.inst.loudnessEnhancerExtended?.setTargetGainTrack(gainToUse);
                       } else if (e.isVolumeEnabled) {
                         vol = gainData?.calculateGainAsVolume();
-                      }
-                    } else if (currentItem is YoutubeID) {
-                      final streamsResult = await YoutubeInfoController.video.fetchVideoStreamsCache(currentItem.id);
-                      final loudnessDb = streamsResult?.loudnessDBData?.loudnessDb;
-                      if (loudnessDb != null) {
-                        if (e.isLoudnessEnhancerEnabled) {
-                          Player.inst.loudnessEnhancerExtended?.setTargetGainTrack(-loudnessDb.toDouble());
-                        } else if (e.isVolumeEnabled) {
-                          vol = ReplayGainData.convertGainToVolume(gain: -loudnessDb.toDouble());
-                        }
                       }
                     }
                     vol ??= ReplayGainData.kDefaultFallbackVolume;

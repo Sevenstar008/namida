@@ -32,7 +32,7 @@ class Queue {
         }).toList() ??
         [];
     return Queue(
-      source: QueueSource.fromJson(json['source']) ?? QueueSourceYoutubeID.fromJson(json['source']) ?? QueueSource.others(null),
+      source: QueueSource.fromJson(json['source']) ?? QueueSource.others(null),
       homePageItem: HomePageItems.values.getEnum(json['homePageItem'] ?? ''),
       date: json['date'] ?? DateTime(1970),
       isFav: json['isFav'] ?? false,

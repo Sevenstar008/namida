@@ -187,7 +187,7 @@ abstract class TagsExtractor {
     isNetwork ??= path.startsWith('http');
     if (isNetwork) {
       final info = infoCallback();
-      filename = DownloadTaskFilename.cleanupFilename(
+      filename = TagsExtractor._cleanupFilename(
         [
           info.title ?? '',
           networkId ?? MusicWebServer.baseUrlToId(path) ?? '',
@@ -218,10 +218,19 @@ abstract class TagsExtractor {
     if (albumName != null && identifiers.contains(AlbumIdentifier.albumName)) buffer.write(albumName);
     if (albumArtist != null && identifiers.contains(AlbumIdentifier.albumArtist)) buffer.write(albumArtist);
     if (year != null && identifiers.contains(AlbumIdentifier.year)) buffer.write(year);
-    return DownloadTaskFilename.cleanupFilename(
-      buffer.toString(),
-      parentDirPath: parentDirPath,
-    );
+    return TagsExtractor._cleanupFilename(buffer.toString(), parentDirPath: parentDirPath);
+  }
+
+  static final RegExp _cleanupFilenameRegex = RegExp(r'[*#\$|/\\!^:"\?%<>\u2F38\u2044\u29F8]', caseSensitive: false);
+  static const int _fullPathLimit = 4096;
+  static String _cleanupFilename(String filename, {required String parentDirPath}) {
+    final cleaned = filename.replaceAll(_cleanupFilenameRegex, '_');
+    final maxLength = 255.withMaximum(_fullPathLimit - parentDirPath.length);
+    if (cleaned.length <= maxLength) return cleaned;
+    final dotIndex = cleaned.lastIndexOf('.');
+    final ext = dotIndex > 0 ? cleaned.substring(dotIndex) : '';
+    if (ext.length >= maxLength) return cleaned.substring(0, maxLength);
+    return '${cleaned.substring(0, maxLength - ext.length)}$ext';
   }
 
   static String getArtworkIdentifierFromInfo(FAudioModel? data, Set<AlbumIdentifier> identifiers, String parentDirPath) {

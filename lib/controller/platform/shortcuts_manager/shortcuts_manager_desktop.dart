@@ -74,10 +74,6 @@ class _ShortcutsManagerDesktop extends ShortcutsManager {
             finalItem.track,
             refreshNotification: false,
           ),
-          youtubeID: (finalItem) => YoutubePlaylistController.inst.favouriteButtonOnPressed(
-            finalItem.id,
-            refreshNotification: false,
-          ),
         );
         if (newIsFav != null) {
           Player.inst.refreshNotification();
@@ -122,7 +118,7 @@ class _ShortcutsManagerDesktop extends ShortcutsManager {
       control: true,
       callback: () {
         _executeMiniPlayers(
-          (localPlayer, ytPlayer, ytQueueChip) {
+          (localPlayer, ytPlayer) {
             if (ytPlayer != null) {
               if (ytPlayer.isExpanded) {
                 ytPlayer.animateToState(false);
@@ -327,10 +323,9 @@ class _ShortcutsManagerDesktop extends ShortcutsManager {
   @override
   void openPlayerQueue() {
     _executeMiniPlayers(
-      (localPlayer, ytPlayer, ytQueueChip) {
+      (localPlayer, ytPlayer) {
         if (ytPlayer != null) {
           if (!ytPlayer.isExpanded) ytPlayer.animateToState(true);
-          _executeYtQueueSheet(ytQueueChip, (chip) => chip.toggleSheet());
         } else {
           if (localPlayer.isInQueue) {
             localPlayer.snapToExpanded();
@@ -346,30 +341,12 @@ class _ShortcutsManagerDesktop extends ShortcutsManager {
     void Function(
       MiniPlayerController localPlayer,
       NamidaYTMiniplayerState? ytPlayer,
-      YTMiniplayerQueueChipState? ytQueueChip,
     )
     callback,
   ) {
     callback(
       MiniPlayerController.inst,
       MiniPlayerController.inst.ytMiniplayerKey.currentState,
-      NamidaNavigator.inst.ytQueueSheetKey.currentState,
-    );
-  }
-
-  void _executeYtQueueSheet(YTMiniplayerQueueChipState? ytQueueChip, void Function(YTMiniplayerQueueChipState ytQueueChip) callback) {
-    final ytQueue = NamidaNavigator.inst.ytQueueSheetKey.currentState;
-    if (ytQueue != null) {
-      callback(ytQueue);
-      return;
-    }
-
-    Timer(
-      const Duration(milliseconds: 100),
-      () {
-        final ytQueue = NamidaNavigator.inst.ytQueueSheetKey.currentState;
-        if (ytQueue != null) callback(ytQueue);
-      },
     );
   }
 

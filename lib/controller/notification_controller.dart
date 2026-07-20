@@ -9,7 +9,6 @@ import 'package:namida/controller/settings_controller.dart';
 import 'package:namida/core/constants.dart';
 import 'package:namida/core/enums.dart';
 import 'package:namida/core/extensions.dart';
-import 'package:namida/youtube/class/download_task_base.dart';
 
 class NotificationManager {
   static final instance = NotificationManager._platform();
@@ -29,11 +28,6 @@ class NotificationManager {
   static const _historyImportPayload = 'history_import';
   static const _historyImportChannelName = 'History Import';
   static const _historyImportChannelDescription = 'Imports Tracks to History from a source';
-
-  static const _youtubeDownloadID = 2;
-  static const _youtubeDownloadPayload = 'youtube_download';
-  static const _youtubeDownloadChannelName = 'Downloads';
-  static const _youtubeDownloadChannelDescription = 'Downlaod content from youtube';
 
   static Future<bool?> init() {
     final didInit = _flutterLocalNotificationsPlugin.initialize(
@@ -108,61 +102,6 @@ class NotificationManager {
         ),
       ),
       // payload: payload,
-    );
-  }
-
-  void downloadYoutubeNotification({
-    required DownloadTaskFilename filenameWrapper,
-    required String title,
-    required String Function(String progressText) subtitle,
-    String? imagePath,
-    required int progress,
-    required int total,
-    required DateTime displayTime,
-    required bool isRunning,
-  }) {
-    _createProgressNotification(
-      id: _youtubeDownloadID,
-      progress: progress,
-      maxProgress: total,
-      title: title,
-      subtitle: subtitle,
-      channelName: _youtubeDownloadChannelName,
-      channelDescription: _youtubeDownloadChannelDescription,
-      payload: _youtubeDownloadPayload,
-      imagePath: imagePath,
-      isInBytes: true,
-      tag: filenameWrapper.key,
-      displayTime: displayTime,
-      ongoing: isRunning,
-    );
-  }
-
-  Future<void> removeDownloadingYoutubeNotification({required DownloadTaskFilename filenameWrapper}) async {
-    await _flutterLocalNotificationsPlugin.cancel(id: _youtubeDownloadID, tag: filenameWrapper.key);
-  }
-
-  void doneDownloadingYoutubeNotification({
-    required DownloadTaskFilename filenameWrapper,
-    required String videoTitle,
-    required String subtitle,
-    required bool failed,
-    String? imagePath,
-  }) async {
-    final key = filenameWrapper.key;
-    await _flutterLocalNotificationsPlugin.cancel(id: _youtubeDownloadID, tag: key);
-    _createNotification(
-      id: _youtubeDownloadID,
-      title: videoTitle,
-      body: subtitle,
-      subText: failed ? 'error' : '100% ✓',
-      channelName: _youtubeDownloadChannelName,
-      channelDescription: _youtubeDownloadChannelDescription,
-      payload: _youtubeDownloadPayload,
-      imagePath: imagePath,
-      isInBytes: true,
-      tag: key,
-      displayTime: DateTime.now(),
     );
   }
 
@@ -300,41 +239,6 @@ class NotificationManager {
 
 class _NotificationManagerSuppressed extends NotificationManager {
   const _NotificationManagerSuppressed._() : super._();
-
-  DownloadNotifications get _downloadNotifications => settings.youtube.downloadNotifications.value;
-
-  @override
-  void downloadYoutubeNotification({
-    required DownloadTaskFilename filenameWrapper,
-    required String title,
-    required String Function(String progressText) subtitle,
-    String? imagePath,
-    required int progress,
-    required int total,
-    required DateTime displayTime,
-    required bool isRunning,
-  }) {
-    return;
-  }
-
-  @override
-  void doneDownloadingYoutubeNotification({
-    required DownloadTaskFilename filenameWrapper,
-    required String videoTitle,
-    required String subtitle,
-    required bool failed,
-    String? imagePath,
-  }) async {
-    if (_downloadNotifications == DownloadNotifications.disableAll) return;
-    if (_downloadNotifications == DownloadNotifications.showFailedOnly && !failed) return;
-    super.doneDownloadingYoutubeNotification(
-      filenameWrapper: filenameWrapper,
-      videoTitle: videoTitle,
-      subtitle: subtitle,
-      failed: failed,
-      imagePath: imagePath,
-    );
-  }
 
   @override
   void importHistoryNotification(int parsed, int total, DateTime displayTime) {

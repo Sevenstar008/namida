@@ -18,7 +18,6 @@ import 'package:namida/ui/widgets/settings/extra_settings.dart';
 import 'package:namida/ui/widgets/settings/indexer_settings.dart';
 import 'package:namida/ui/widgets/settings/playback_settings.dart';
 import 'package:namida/ui/widgets/settings/theme_settings.dart';
-import 'package:namida/ui/widgets/settings/youtube_settings.dart';
 
 LinearGradient _bgLinearGradient(BuildContext context) {
   final firstC = context.theme.appBarTheme.backgroundColor ?? CurrentColor.inst.color.withAlpha(context.isDarkMode ? 0 : 25);
@@ -62,7 +61,6 @@ class SettingsPage extends StatelessWidget with NamidaRouteWidget {
                       const IndexerSettings(),
                       const PlaybackSettings(),
                       const CustomizationSettings(),
-                      const YoutubeSettings(),
                       const ExtrasSettings(),
                       const BackupAndRestore(),
                       const AdvancedSettings(),
@@ -153,12 +151,6 @@ class CollapsedSettingTiles extends StatelessWidget {
           subtitle: lang.customizationsSubtitle,
           icon: Broken.brush_1,
           page: () => const CustomizationSettings(),
-        ),
-        CustomCollapsedListTile(
-          title: () => lang.youtube,
-          subtitle: lang.youtubeSettingsSubtitle,
-          icon: Broken.video,
-          page: () => const YoutubeSettings(),
         ),
         CustomCollapsedListTile(
           title: () => lang.extras,

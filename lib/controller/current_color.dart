@@ -26,8 +26,6 @@ import 'package:namida/core/extensions.dart';
 import 'package:namida/core/namida_converter_ext.dart';
 import 'package:namida/core/utils.dart';
 import 'package:namida/ui/widgets/network_artwork.dart';
-import 'package:namida/youtube/class/youtube_id.dart';
-import 'package:namida/youtube/widgets/yt_thumbnail.dart';
 
 Color get playerStaticColor => namida.isDarkMode ? playerStaticColorDark : playerStaticColorLight;
 
@@ -84,8 +82,6 @@ class CurrentColor {
   final currentPlayingTrack = Rxn<Selectable>();
   final currentPlayingIndex = 0.obs;
 
-  YoutubeID? _currentPlayingVideo;
-
   Color? _deviceWallpaperColorAccent;
 
   final allColorPalettesGeneratingProgress = 0.obs;
@@ -100,7 +96,6 @@ class CurrentColor {
   }
 
   final _colorsMap = <String, NamidaColor>{};
-  final _colorsMapYTID = <String, NamidaColor>{};
 
   Timer? _colorsSwitchTimer;
   void switchColorPalettes({bool? playWhenReady, Playable? item, bool? swapEnabled}) {
@@ -212,34 +207,6 @@ class CurrentColor {
     }
   }
 
-  void updatePlayerColorFromYoutubeID(YoutubeID ytIdItem) async {
-    final id = ytIdItem.id;
-    if (id == '') return;
-
-    if (_currentPlayingVideo == ytIdItem) return;
-    _currentPlayingVideo = ytIdItem;
-
-    // -- only extract if same item is still playing, i.e. user didn't skip.
-    bool stillPlaying() => ytIdItem == Player.inst.currentItem.value;
-
-    _updatePlayerColorFromItem(
-      getColorPalette: () async {
-        if (_colorsMapYTID[id] != null) return _colorsMapYTID[id]!;
-
-        final image = await ThumbnailManager.inst.getYoutubeThumbnailAndCache(id: id, type: ThumbnailType.video);
-        if (image != null && stillPlaying()) {
-          final color = await CurrentColor.inst.extractPaletteFromImage(image.path, paletteSaveDirectory: Directory(AppDirs.YT_PALETTES), useIsolate: true);
-          if (color != null && stillPlaying()) {
-            _colorsMapYTID[id] = color; // saving in memory
-            return color;
-          }
-        }
-        return null;
-      },
-      stillPlaying: stillPlaying,
-    );
-  }
-
   final _fnLimiter = FunctionExecuteLimiter();
   void _updatePlayerColorFromItem({
     required Future<NamidaColor?> Function() getColorPalette,
@@ -273,7 +240,6 @@ class CurrentColor {
   void resetCurrentPlayingTrack() {
     currentPlayingTrack.value = null;
     _namidaColorMiniplayer.value = null;
-    _currentPlayingVideo = null;
   }
 
   bool _checkDummyColor(NamidaColor value) => value.palette.isEmpty || (value.palette.length == 1 && value.color == value.palette.first && value.color == value.palette.last);

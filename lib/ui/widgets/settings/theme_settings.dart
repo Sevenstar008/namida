@@ -24,8 +24,6 @@ import 'package:namida/core/translations/language.dart';
 import 'package:namida/core/utils.dart';
 import 'package:namida/ui/widgets/custom_widgets.dart';
 import 'package:namida/ui/widgets/settings_card.dart';
-import 'package:namida/youtube/class/youtube_id.dart';
-import 'package:namida/youtube/controller/yt_miniplayer_ui_controller.dart';
 
 enum _ThemeSettingsKeys with SettingKeysBase {
   themeMode,
@@ -63,9 +61,7 @@ class ThemeSetting extends SettingSubpageProvider {
 
   void _refreshColorCurrentPlayingItem() {
     final currentItem = Player.inst.currentItem.value;
-    if (currentItem is YoutubeID) {
-      CurrentColor.inst.updatePlayerColorFromYoutubeID(currentItem);
-    } else if (currentItem is Selectable) {
+    if (currentItem is Selectable) {
       CurrentColor.inst.updatePlayerColorFromTrack(currentItem, null);
     }
   }
@@ -409,7 +405,6 @@ class ToggleThemeModeContainer extends StatefulWidget {
     settings.save(themeMode: themeMode);
     await Future.delayed(const Duration(milliseconds: kThemeAnimationDurationMS));
     CurrentColor.inst.updateColorAfterThemeModeChange();
-    YoutubeMiniplayerUiController.inst.startDimTimer();
   }
 
   @override

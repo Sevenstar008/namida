@@ -15,14 +15,12 @@ import 'package:namida/core/utils.dart';
 import 'package:namida/packages/searchbar_animation.dart';
 import 'package:namida/ui/pages/main_page.dart';
 import 'package:namida/ui/widgets/custom_widgets.dart';
-import 'package:namida/youtube/pages/yt_search_results_page.dart';
 
 class ScrollSearchController {
   static ScrollSearchController get inst => _instance;
   static final ScrollSearchController _instance = ScrollSearchController._internal();
   ScrollSearchController._internal();
 
-  final ytSearchKey = GlobalKey<YoutubeSearchResultsPageState>();
   final currentSearchType = SearchType.localTracks.obs;
 
   final isGlobalSearchMenuShown = false.obs;
@@ -45,7 +43,6 @@ class ScrollSearchController {
 
   void toggleSearch({bool forceOpen = false, bool instant = false}) async {
     MiniPlayerController.inst.snapToMini();
-    MiniPlayerController.inst.ytMiniplayerKey.currentState?.animateToState(false);
     final shouldShow = this.toggleSearchMenu();
     void openFn() => ScrollSearchController.inst.searchBarKey.currentState?.openCloseSearchBar(forceOpen: shouldShow);
     if (instant) {

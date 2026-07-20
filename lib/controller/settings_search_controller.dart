@@ -17,7 +17,6 @@ import 'package:namida/ui/widgets/settings/extra_settings.dart';
 import 'package:namida/ui/widgets/settings/indexer_settings.dart';
 import 'package:namida/ui/widgets/settings/playback_settings.dart';
 import 'package:namida/ui/widgets/settings/theme_settings.dart';
-import 'package:namida/ui/widgets/settings/youtube_settings.dart';
 
 mixin SettingKeysBase {
   NamidaFeaturesAvailablityBase? get availability => null;
@@ -54,14 +53,6 @@ extension _SettSearcherUtils on SettingSubpageEnum {
           subtitle: lang.customizationsSubtitle,
           icon: Broken.brush_1,
           page: () => CustomizationSettings(initialItem: initialItem),
-        );
-
-      case SettingSubpageEnum.youtube:
-        return CustomCollapsedListTile(
-          title: () => lang.youtube,
-          subtitle: lang.youtubeSettingsSubtitle,
-          icon: Broken.video,
-          page: () => YoutubeSettings(initialItem: initialItem),
         );
 
       case SettingSubpageEnum.extra:
@@ -138,7 +129,6 @@ class SettingsSearchController {
         IndexerSettings(),
         PlaybackSettings(),
         CustomizationSettings(),
-        YoutubeSettings(),
         ExtrasSettings(),
         BackupAndRestore(),
         AdvancedSettings(),
