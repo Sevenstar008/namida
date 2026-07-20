@@ -1,0 +1,44 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build_apk:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version-file: pubspec.yaml
+
+      - uses: actions/setup-java@v1
+        with:
+          java-version: "17"
+
+      - name: Setup Git credentials
+        run: |
+          if [ -n "${{ secrets.PAT_ORG }}" ]; then
+            git config --global url.https://${{ secrets.PAT_ORG }}@github.com/namidaco/.insteadOf https://github.com/namidaco/
+          fi
+          if [ -n "${{ secrets.PAT }}" ]; then
+            git config --global url.https://${{ secrets.PAT }}@github.com/MSOB7YY/.insteadOf https://github.com/MSOB7YY/
+          fi
+
+      - name: Install dependencies
+        run: |
+          flutter clean
+          flutter pub get
+
+      - name: Build APK
+        run: flutter build apk --release
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: namida-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
